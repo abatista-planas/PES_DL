@@ -1,7 +1,7 @@
 """module containing a predictor which makes predictions"""
-import pickle
-import os
 
+import os
+import pickle
 
 
 class Predictor:
