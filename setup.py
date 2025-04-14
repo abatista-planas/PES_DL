@@ -4,6 +4,10 @@ requirements = [
     'importlib-metadata; python_version == "3.12"',
     "scikit-learn>=1.1.1",
     'torch',
+    'matplotlib',
+    'numpy',
+    'pandas',
+    'seaborn',
 ]
 
 requirements_dev = [
