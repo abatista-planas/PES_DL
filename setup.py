@@ -11,11 +11,13 @@ requirements_dev = [
     "isort",
     "jupyter",
     "pre-commit",
+    "pytest",
+    "pytest-cov",
 ]
 
 setup(
     name="PES_DL",
-    version="0.1.0",
+    version="0.2.0",
     description="Deep Learning model to construct Potential Energy Surfaces",
     url="https://github.com/abatista-planas/PES_DL.git",
     author="Adrian Batista",
@@ -26,3 +28,4 @@ setup(
         "dev": requirements_dev,
     },
 )
+
