@@ -3,6 +3,7 @@ from setuptools import setup
 requirements = [
     'importlib-metadata; python_version == "3.12"',
     "scikit-learn>=1.1.1",
+    'torch',
 ]
 
 requirements_dev = [
