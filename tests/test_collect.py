@@ -52,7 +52,7 @@ def test_collect_samples_2(monkeypatch):
 # REFACTOR 3
 @pytest.fixture()
 def mock_generate():
-    return Mock(return_value=[1, 1, 1, 1,1])
+    return Mock(return_value=[1, 1, 1, 1])
 
 
 def test_collect_samples_3(monkeypatch, mock_generate_):
