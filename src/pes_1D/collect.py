@@ -1,10 +1,5 @@
 """collect some samples"""
 
-print("MY collect.py")
-
-def A():
-    print("Adrian")
-    return 1
 
 def generate_sample(sample_number, base):
     print("Generating sample 1.1.0")
