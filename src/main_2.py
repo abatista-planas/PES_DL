@@ -1,6 +1,8 @@
 import torch
 
+x = torch.tensor(2.0,requires_grad=True)
+y = x**2 + 2*x + 1
 
-x = torch.rand(5, 3)
+print(y)
 print(x)
 
