@@ -1,5 +1,5 @@
-from pes_1D.predictor import Predictor
+from pes_1D.data_generator import DataGenerator
 
-# __all__ = [
-#     "Predictor",
-# ]
+__all__ = [
+    "DataGenerator",
+]
