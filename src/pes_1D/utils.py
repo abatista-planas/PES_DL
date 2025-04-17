@@ -1,7 +1,40 @@
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import torch
 import torch.nn as nn
+
+from pes_1D.visualiztion import plot_confusion_matrix, sample_visualization
+
+
+class NoiseFunctions:
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def outliers(energy, size, p=0.1):
+        return energy * (
+            1 + (np.random.random(size) <= p) * np.random.uniform(0.25, 1.0, size)
+        )
+
+    @staticmethod
+    def oscilation(
+        energy: npt.NDArray[np.float32],
+        r: npt.NDArray[np.float32],
+        r0: float,
+        A: float,
+        lmbda: float,
+        omega: float,
+        phi: float,
+    ):
+        return energy * (
+            1 + A * np.exp(-lmbda * (r - r0)) * np.cos(omega * (r - r0) + phi)
+        )
+
+    @staticmethod
+    def noise(energy: npt.NDArray[np.float32], size: int, noise_level: float = 0.1):
+        """Adds Gaussian noise to the energy values."""
+        return energy * (1 + np.random.normal(0, noise_level, size=size))
 
 
 def get_model_failure_info(
@@ -18,7 +51,7 @@ def get_model_failure_info(
         y_pred_np = y_pred.cpu().numpy()
         y_true_np = y_true.cpu().numpy()
 
-    # plot_confusion_matrix(y_true_np, y_pred_np, title='Confusion Matrix')
+    plot_confusion_matrix(y_true_np, y_pred_np, title="Confusion Matrix")
     failure_index = np.nonzero(y_true_np != y_pred_np)[0].tolist()
 
     df_samples.reset_index(drop=True, inplace=True)
@@ -29,3 +62,5 @@ def get_model_failure_info(
     print("Failure Distribution by Deformation Type:")
     print(value_counts)
     print("\n")
+
+    sample_visualization(df_failure)
