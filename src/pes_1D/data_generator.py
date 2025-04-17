@@ -7,28 +7,8 @@ import numpy.typing as npt
 import pandas as pd
 import scipy.optimize as optimize
 import torch
+from pes_1D.utils import NoiseFunctions
 
-
-class NoiseFunctions:
-    def __init__(self):
-        pass
-
-    @staticmethod
-    def outliers(energy, size, p=0.1):
-        return energy * (
-            1 + (np.random.random(size) <= p) * np.random.uniform(0.25, 1.0, size)
-        )
-
-    @staticmethod
-    def oscilation(energy, r, r0, A, lmbda, omega, phi):
-        return energy * (
-            1 + A * np.exp(-lmbda * (r - r0)) * np.cos(omega * (r - r0) + phi)
-        )
-
-    @staticmethod
-    def noise(energy, size, noise_level=0.1):
-        """Adds Gaussian noise to the energy values."""
-        return energy * (1 + np.random.normal(0, noise_level, size=size))
 
 
 def generate_discriminator_training_set(
@@ -210,3 +190,13 @@ def lennard_jones(
         raise Exception("Size and range must be positive")
 
     return 4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)
+
+def lennard_jones_derivative(
+    sigma: float, epsilon: float, r: npt.NDArray[np.float64]
+) -> npt.NDArray[np.float64]:
+    """Evaluates the Lennard-Jones potential for given parameters and distance"""
+
+    if np.any(r <= 0):
+        raise Exception("Size and range must be positive")
+
+    return 4 * epsilon * (1 / r) * (12 * (sigma / r) ** 12 - 6*(sigma / r) ** 6)
