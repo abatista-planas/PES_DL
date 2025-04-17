@@ -7,8 +7,8 @@ import numpy.typing as npt
 import pandas as pd
 import scipy.optimize as optimize
 import torch
-from pes_1D.utils import NoiseFunctions
 
+from pes_1D.utils import NoiseFunctions
 
 
 def generate_discriminator_training_set(
@@ -191,6 +191,7 @@ def lennard_jones(
 
     return 4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)
 
+
 def lennard_jones_derivative(
     sigma: float, epsilon: float, r: npt.NDArray[np.float64]
 ) -> npt.NDArray[np.float64]:
@@ -199,4 +200,4 @@ def lennard_jones_derivative(
     if np.any(r <= 0):
         raise Exception("Size and range must be positive")
 
-    return 4 * epsilon * (1 / r) * (12 * (sigma / r) ** 12 - 6*(sigma / r) ** 6)
+    return 4 * epsilon * (1 / r) * (12 * (sigma / r) ** 12 - 6 * (sigma / r) ** 6)
