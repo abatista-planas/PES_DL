@@ -12,13 +12,13 @@ from pes_1D.utils import NoiseFunctions
 
 
 def generate_discriminator_training_set(
-    n_samples: int, size: int, test_split: float = 0.2, gpu: bool = True
+    n_samples: int, size: int, test_split: float = 0.2, gpu: bool = True, generator_seed: list[int] = [37,43]
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, pd.DataFrame]:
     """Generates training sets for the Lennard-Jones potential"""
 
-    df_good_sample = generate_lennard_jones_samples(int(n_samples / 2), size, seed=37)
+    df_good_sample = generate_lennard_jones_samples(int(n_samples / 2), size, seed=generator_seed[0])
     df_bad_sample = generate_bad_lennard_jones_samples(
-        n_samples - int(n_samples / 2), size, seed=43
+        n_samples - int(n_samples / 2), size, seed=generator_seed[1]
     )
 
     df_all = pd.concat([df_good_sample, df_bad_sample])
@@ -115,6 +115,7 @@ def generate_lennard_jones_samples(
     sigma_array = np.random.uniform(1.0, 7.0, n_samples)
     epsilon_array = np.random.uniform(20, 300, n_samples)
     df_samples = []
+    df_derivatives=[]
     for i in range(n_samples):
         # Generate random parameters
         sigma = sigma_array[i]
@@ -137,6 +138,9 @@ def generate_lennard_jones_samples(
 
         # Generate samples
         df_samples.append(lennard_jones_pes(sigma, epsilon, r_min, r_max, size))
+        df_derivatives.append(lennard_jones_pes_derivatives(
+            sigma, epsilon, r_min, r_max, size
+        ))
 
     return pd.DataFrame(
         {
@@ -150,6 +154,7 @@ def generate_lennard_jones_samples(
                 for _ in range(n_samples)
             ],
             "pes": df_samples,
+            "pes_derivatives": df_derivatives,
             "modified_pes": [0] * n_samples,
             "deformation_type": [""] * n_samples,
             "deformation_parameters": [{}] * n_samples,
@@ -179,6 +184,30 @@ def lennard_jones_pes(
 
     r = np.linspace(R_min, R_max, size, dtype=np.float64)
     return pd.DataFrame({"r": r, "energy": lennard_jones(sigma, epsilon, r)})
+
+def lennard_jones_pes_derivatives(
+    sigma: float, epsilon: float, R_min: float, R_max: float, size: int
+) -> pd.DataFrame:
+    """Generates a set of samples from the Lennard-Jones potential for given parameters
+
+    Args:
+        sigma (float): Sigma parameter of the Lennard-Jones potential
+        epsilon (float): Epsilon parameter of the Lennard-Jones potential
+        R_min (float):  _minimum distance for the potential
+                        0.01 <= R_min < R_max
+        R_max (float): _maximum distance for the potential
+                        R_min < R_max <= 100
+        size (int): number of points in each sample
+
+    Returns:
+        pd.DataFrame: DataFrame containing the generated samples
+    """
+    if size <= 0 or R_min <= 0 or R_max <= 0 or R_min >= R_max:
+        raise Exception("Size and range must be positive")
+
+    r = np.linspace(R_min, R_max, size, dtype=np.float64)
+    return pd.DataFrame({"r": r, "energy": lennard_jones_derivative(sigma, epsilon, r)})
+
 
 
 def lennard_jones(
