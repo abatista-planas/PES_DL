@@ -13,7 +13,7 @@ def train_model(
     criterion: nn.Module,
     optimizer: torch.optim.Optimizer,
     epochs: int,
-    verbose: bool = True,
+    verbose: bool = False,
 ) -> list[float]:
     """Trains the model on the training set and returns the trained model and losses."""
     losses: list[float] = []
@@ -29,6 +29,7 @@ def train_model(
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+
     return losses
 
 
