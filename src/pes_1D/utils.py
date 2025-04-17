@@ -4,7 +4,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 
-from pes_1D.visualiztion import plot_confusion_matrix, sample_visualization
+from pes_1D.visualization import plot_confusion_matrix, sample_visualization
 
 
 class NoiseFunctions:
