@@ -3,15 +3,14 @@ from setuptools import setup
 requirements = [
     'importlib-metadata; python_version == "3.12"',
     "scikit-learn>=1.1.1",
-    'torch',
-    'matplotlib',
-    'numpy',
-    'pandas',
-    'seaborn',
+    "torch",
+    "matplotlib",
+    "numpy",
+    "pandas",
+    "seaborn",
 ]
 
 requirements_dev = [
-    "black",
     "ruff",
     "isort",
     "jupyter",
@@ -33,4 +32,3 @@ setup(
         "dev": requirements_dev,
     },
 )
-
