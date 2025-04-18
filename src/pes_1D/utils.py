@@ -37,6 +37,91 @@ class NoiseFunctions:
         return energy * (1 + np.random.normal(0, noise_level, size=size))
 
 
+class PesModels:
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def lennard_jones(
+        sigma: float, epsilon: float, r: npt.NDArray[np.float64]
+    ) -> npt.NDArray[np.float64]:
+        """Evaluates the Lennard-Jones potential for given parameters and distance"""
+
+        if np.any(r <= 0):
+            raise Exception("Size and range must be positive")
+
+        return 4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)
+
+    @staticmethod
+    def lennard_jones_derivative(
+        sigma: float, epsilon: float, r: npt.NDArray[np.float64]
+    ) -> npt.NDArray[np.float64]:
+        """Evaluates the derivative of the Lennard-Jones potential for given parameters and distance"""
+
+        if np.any(r <= 0):
+            raise Exception("Size and range must be positive")
+
+        return (
+            -(24 * epsilon / r) * (2 * (sigma / r) ** 12 - (sigma / r) ** 6)
+        ).astype(np.float64)
+
+    @staticmethod
+    def lennard_jones_pes(
+        sigma: float, epsilon: float, R_min: float, R_max: float, size: int
+    ) -> pd.DataFrame:
+        """Generates a set of samples from the Lennard-Jones potential for given parameters
+
+        Args:
+            sigma (float): Sigma parameter of the Lennard-Jones potential
+            epsilon (float): Epsilon parameter of the Lennard-Jones potential
+            R_min (float):  _minimum distance for the potential
+                            0.01 <= R_min < R_max
+            R_max (float): _maximum distance for the potential
+                            R_min < R_max <= 100
+            size (int): number of points in each sample
+
+        Returns:
+            pd.DataFrame: DataFrame containing the generated samples
+        """
+        if size <= 0 or R_min <= 0 or R_max <= 0 or R_min >= R_max:
+            raise Exception("Size and range must be positive")
+
+        r = np.linspace(R_min, R_max, size, dtype=np.float64)
+        return pd.DataFrame(
+            {"r": r, "energy": PesModels.lennard_jones(sigma, epsilon, r)}
+        )
+
+    @staticmethod
+    def lennard_jones_pes_derivatives(
+        sigma: float, epsilon: float, R_min: float, R_max: float, size: int
+    ) -> pd.DataFrame:
+        """Generates a set of samples from the Lennard-Jones potential for given parameters
+
+        Args:
+            sigma (float): Sigma parameter of the Lennard-Jones potential
+            epsilon (float): Epsilon parameter of the Lennard-Jones potential
+            R_min (float):  _minimum distance for the potential
+                            0.01 <= R_min < R_max
+            R_max (float): _maximum distance for the potential
+                            R_min < R_max <= 100
+            size (int): number of points in each sample
+
+        Returns:
+            pd.DataFrame: DataFrame containing the generated samples
+        """
+        if size <= 0 or R_min <= 0 or R_max <= 0 or R_min >= R_max:
+            raise Exception("Size and range must be positive")
+
+        r = np.linspace(R_min, R_max, size, dtype=np.float64)
+        return pd.DataFrame(
+            {
+                "r": r,
+                "energy": PesModels.lennard_jones_derivative(sigma, epsilon, r)
+                + np.random.uniform(-5.0, 5.0),
+            }
+        )
+
+
 def get_model_failure_info(
     df_samples: pd.DataFrame,
     x: torch.Tensor,
