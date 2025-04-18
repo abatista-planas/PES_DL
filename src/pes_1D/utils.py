@@ -67,7 +67,12 @@ class PesModels:
 
     @staticmethod
     def lennard_jones_pes(
-        sigma: float, epsilon: float, R_min: float, R_max: float, size: int
+        sigma: float,
+        epsilon: float,
+        R_min: float,
+        R_max: float,
+        size: int,
+        asymtote_noise: bool = True,
     ) -> pd.DataFrame:
         """Generates a set of samples from the Lennard-Jones potential for given parameters
 
@@ -88,7 +93,11 @@ class PesModels:
 
         r = np.linspace(R_min, R_max, size, dtype=np.float64)
         return pd.DataFrame(
-            {"r": r, "energy": PesModels.lennard_jones(sigma, epsilon, r)}
+            {
+                "r": r,
+                "energy": PesModels.lennard_jones(sigma, epsilon, r)
+                + asymtote_noise * np.random.uniform(-5.0, 5.0),
+            }
         )
 
     @staticmethod
