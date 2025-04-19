@@ -10,11 +10,11 @@ from pes_1D.utils import get_model_failure_info  # type: ignore
 
 number_of_pts = 128
 n_samples = 10000
-test_split = 0.8
+test_split = 0.4
 gpu = True
 properties_list = ["energy","derivative","inverse_derivative"]  # List of properties to use for training
 properties_format = "array"  # Format [concatenated array or table] of properties to use for training
-deformation_list = np.array(["oscillation"])  # Types of deformation to generate
+deformation_list = np.array(["outliers","oscillation"])  # Types of deformation to generate
 
 X_train, y_train, X_test, y_test, df_samples = generate_discriminator_training_set(
     n_samples, number_of_pts,
@@ -24,6 +24,13 @@ X_train, y_train, X_test, y_test, df_samples = generate_discriminator_training_s
     test_split, gpu, 
     generator_seed=[37, 43]
 )
+
+data = {'X_train': X_train, 
+        'y_train': y_train, 
+        'X_test': X_test, 
+        'y_test': y_test}
+
+torch.save(data, 'multiple_tensors.pt')
 in_features = X_train.shape[1] if properties_format == "array" else number_of_pts
 
 model =  AnnDiscriminator(in_features, [512,128,32], 2)

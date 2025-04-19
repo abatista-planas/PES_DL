@@ -31,7 +31,8 @@ class AnnDiscriminator(nn.Module):
         x = self.layers['output'](x)
         return x
 
-
+    def summary(self, input_size):
+        summary(self, input_size=(1, input_size))
 
 
 # class AnnDiscriminator(nn.Module):
@@ -76,5 +77,3 @@ class AnnDiscriminator(nn.Module):
         
 #         return x
 
-#     def summary(self, input_size):
-#         summary(self, input_size=(1, input_size))
