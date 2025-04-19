@@ -1,8 +1,11 @@
+from typing import Tuple
+
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
 import torch
 import torch.nn as nn
+from scipy.differentiate import derivative
 
 from pes_1D.visualization import plot_confusion_matrix, sample_visualization
 
@@ -12,29 +15,45 @@ class NoiseFunctions:
         pass
 
     @staticmethod
-    def outliers(energy, size, p=0.1):
-        return energy * (
-            1 + (np.random.random(size) <= p) * np.random.uniform(0.25, 1.0, size)
+    def outliers(
+        A: float, size: int, p: float = 0.05
+    ) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+        outliers_array = (np.random.random(size) <= p) * np.random.uniform(
+            0.25, 1.0, size
         )
 
+        outliers_function = A * outliers_array
+
+        outliers_derivative = np.random.uniform(10**3, 10**8, size) * outliers_array
+
+        return outliers_function, outliers_derivative
+
     @staticmethod
-    def oscilation(
-        energy: npt.NDArray[np.float32],
-        r: npt.NDArray[np.float32],
+    def oscillation(
+        r: npt.NDArray[np.float64],
         r0: float,
         A: float,
         lmbda: float,
         omega: float,
         phi: float,
-    ):
-        return energy * (
-            1 + A * np.exp(-lmbda * (r - r0)) * np.cos(omega * (r - r0) + phi)
+    ) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+        oscillation_function = (
+            A * np.exp(-lmbda * (r - r0)) * np.cos(omega * (r - r0) + phi)
         )
+        oscillation_derivative = (
+            A
+            * np.exp(-lmbda * (r - r0))
+            * (
+                -lmbda * np.cos(omega * (r - r0) + phi)
+                - omega * np.sin(omega * (r - r0) + phi)
+            )
+        )
+        return oscillation_function, oscillation_derivative
 
     @staticmethod
-    def noise(energy: npt.NDArray[np.float32], size: int, noise_level: float = 0.1):
+    def noise(A: float, size: int, noise_level: float = 0.2) -> npt.NDArray[np.float64]:
         """Adds Gaussian noise to the energy values."""
-        return energy * (1 + np.random.normal(0, noise_level, size=size))
+        return A * np.random.normal(0.0, noise_level, size=size)
 
 
 class PesModels:
@@ -53,26 +72,12 @@ class PesModels:
         return 4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)
 
     @staticmethod
-    def lennard_jones_derivative(
-        sigma: float, epsilon: float, r: npt.NDArray[np.float64]
-    ) -> npt.NDArray[np.float64]:
-        """Evaluates the derivative of the Lennard-Jones potential for given parameters and distance"""
-
-        if np.any(r <= 0):
-            raise Exception("Size and range must be positive")
-
-        return (
-            -(24 * epsilon / r) * (2 * (sigma / r) ** 12 - (sigma / r) ** 6)
-        ).astype(np.float64)
-
-    @staticmethod
     def lennard_jones_pes(
         sigma: float,
         epsilon: float,
         R_min: float,
         R_max: float,
         size: int,
-        asymtote_noise: bool = True,
     ) -> pd.DataFrame:
         """Generates a set of samples from the Lennard-Jones potential for given parameters
 
@@ -92,41 +97,17 @@ class PesModels:
             raise Exception("Size and range must be positive")
 
         r = np.linspace(R_min, R_max, size, dtype=np.float64)
+
+        def pes_lj(r_):
+            return PesModels.lennard_jones(sigma, epsilon, r_)
+
+        pes_derivative = derivative(pes_lj, r)
         return pd.DataFrame(
             {
                 "r": r,
-                "energy": PesModels.lennard_jones(sigma, epsilon, r)
-                + asymtote_noise * np.random.uniform(-5.0, 5.0),
-            }
-        )
-
-    @staticmethod
-    def lennard_jones_pes_derivatives(
-        sigma: float, epsilon: float, R_min: float, R_max: float, size: int
-    ) -> pd.DataFrame:
-        """Generates a set of samples from the Lennard-Jones potential for given parameters
-
-        Args:
-            sigma (float): Sigma parameter of the Lennard-Jones potential
-            epsilon (float): Epsilon parameter of the Lennard-Jones potential
-            R_min (float):  _minimum distance for the potential
-                            0.01 <= R_min < R_max
-            R_max (float): _maximum distance for the potential
-                            R_min < R_max <= 100
-            size (int): number of points in each sample
-
-        Returns:
-            pd.DataFrame: DataFrame containing the generated samples
-        """
-        if size <= 0 or R_min <= 0 or R_max <= 0 or R_min >= R_max:
-            raise Exception("Size and range must be positive")
-
-        r = np.linspace(R_min, R_max, size, dtype=np.float64)
-        return pd.DataFrame(
-            {
-                "r": r,
-                "energy": PesModels.lennard_jones_derivative(sigma, epsilon, r)
-                + np.random.uniform(-5.0, 5.0),
+                "energy": pes_lj(r),
+                "derivative": pes_derivative.df,
+                "inverse_derivative": 1.0 / (pes_derivative.df + 1e-10),
             }
         )
 
