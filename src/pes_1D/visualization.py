@@ -57,6 +57,7 @@ def sample_visualization(
 
     if nrow == 0 or ncol == 0:
         df_size = min(len(df_plot), 15)
+
         if df_size <= 3:
             nrow = df_size
             ncol = 1
@@ -68,7 +69,7 @@ def sample_visualization(
             ncol = 3
 
     fig, axs = plt.subplots(nrow, ncol)
-    fig.set_size_inches(20, 20)
+    # fig.set_size_inches(20, 20)
     count = 0
 
     def custom_plot(row):
@@ -77,14 +78,28 @@ def sample_visualization(
         nonlocal count
 
         if count < 15:
-            row.pes.plot(
-                ax=axs[int(count / ncol)][count % ncol],
-                label=row.deformation_type,
-                x="r",
-                y="energy",
-            )
+            if df_size == 1:
+                row.pes.plot(
+                    label=row.deformation_type,
+                    x="r",
+                    y="energy",
+                )
+            elif ncol == 1:
+                row.pes.plot(
+                    ax=axs[count],
+                    label=row.deformation_type,
+                    x="r",
+                    y="energy",
+                )
+            else:
+                row.pes.plot(
+                    ax=axs[int(count / ncol)][count % ncol],
+                    label=row.deformation_type,
+                    x="r",
+                    y="energy",
+                )
         count += 1
 
     df_plot.apply(lambda x: custom_plot(x), axis=1)
-
-    plt.show()
+    if df_size > 1:
+        plt.show()
