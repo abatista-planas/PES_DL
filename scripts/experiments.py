@@ -1,3 +1,4 @@
+"""Experiments with the model for hyperparameters tuning and evaluation."""
 import numpy as np
 import torch
 import torch.nn as nn
@@ -11,9 +12,21 @@ class Experiment:
         pass
 
     @staticmethod
-    def variational_number_of_pts(model_class, model_paramaters, list_of_pts, verbose=True):
-        """Runs the model with different number of points and return the accuracies trend."""
+    def variational_number_of_pts(
+        model_class, model_paramaters, list_of_pts, verbose=True
+    ):
+        """Runs the model with different number of points and return the accuracies trend
 
+
+        Args:
+            model_class ( model): model class to be used for training
+            model_paramaters (_type_): model parameters to be used for training
+            list_of_pts (_type_):   list of number of points to be used for training
+            verbose (bool, optional): If True, prints the progress of the training. Defaults to True.
+
+        Returns:
+            accuracy_list (list[float]): list of accuracies for each number of points
+        """
         n_samples = 5000
         test_size = 0.6
         gpu = True
