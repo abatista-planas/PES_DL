@@ -8,23 +8,26 @@ import pandas as pd
 import scipy.optimize as optimize
 import torch
 
-from pes_1D.utils import NoiseFunctions
-from pes_1D.utils import PesModels
+from pes_1D.utils import NoiseFunctions, PesModels
+
 
 def generate_discriminator_training_set(
-    n_samples: int, size: int, 
-    properties_list: list[str] = ["energy"], 
-    deformation_list: npt.NDArray[np.str_] = np.array(["outliers", "oscillation"]), 
+    n_samples: int,
+    size: int,
+    properties_list: list[str] = ["energy"],
+    deformation_list: npt.NDArray[np.str_] = np.array(["outliers", "oscillation"]),
     properties_format: str = "table",
-    test_split: float = 0.2, gpu: bool = True, 
-    generator_seed: list[int] = [37,43]
-
+    test_split: float = 0.2,
+    gpu: bool = True,
+    generator_seed: list[int] = [37, 43],
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, pd.DataFrame]:
     """Generates training sets for the Lennard-Jones potential"""
 
-    df_good_sample = generate_lennard_jones_samples(int(n_samples / 2), size, seed=generator_seed[0])
+    df_good_sample = generate_lennard_jones_samples(
+        int(n_samples / 2), size, seed=generator_seed[0]
+    )
     df_bad_sample = generate_bad_lennard_jones_samples(
-        n_samples - int(n_samples / 2), size,deformation_list, seed=generator_seed[1]
+        n_samples - int(n_samples / 2), size, deformation_list, seed=generator_seed[1]
     )
 
     df_all = pd.concat([df_good_sample, df_bad_sample])
@@ -37,7 +40,7 @@ def generate_discriminator_training_set(
         """Define input format"""
         if properties_format == "array":
             return pes[properties_list].values.flatten()
-        else: 
+        else:
             return pes[properties_list].values
 
     # Convert continuous variables to a tensor
@@ -83,16 +86,16 @@ def generate_bad_lennard_jones_samples(
         row.true_pes = 0
         row.modified_pes = 1
         row.deformation_type = deformed_list[row.name]
-        
-  
 
         if deformed_list[row.name] == "outliers":
-            outliers_function,outliers_derivative = NoiseFunctions.outliers(row.pes["energy"], size)
+            outliers_function, outliers_derivative = NoiseFunctions.outliers(
+                row.pes["energy"], size
+            )
             row.pes["energy"] += outliers_function
-            row.pes["derivative"] +=  outliers_derivative
+            row.pes["derivative"] += outliers_derivative
         elif deformed_list[row.name] == "oscillation":
-            r0 = np.random.uniform(0.1,1.5)
-            A = np.random.uniform(1,3)
+            r0 = np.random.uniform(0.1, 1.5)
+            A = np.random.uniform(1, 3)
             lmbda = np.random.uniform(-2, 2)
             omega = np.random.uniform(-1, 1)
             phi = np.random.uniform(0.0, 2 * np.pi)
@@ -103,20 +106,25 @@ def generate_bad_lennard_jones_samples(
             row.deformation_parameters["omega"] = omega
             row.deformation_parameters["phi"] = phi
 
-            oscillation_function,oscillation_derivative =  NoiseFunctions.oscillation(
+            oscillation_function, oscillation_derivative = NoiseFunctions.oscillation(
                 row.pes["r"], r0, A, lmbda, omega, phi
             )
-            row.pes["energy"] =  row.pes["energy"]*(1+oscillation_function)
-            row.pes["derivative"] = row.pes["derivative"]*(1+oscillation_function) + row.pes["energy"]*oscillation_derivative
-            row.pes["inverse_derivative"] =  1.0/(row.pes["derivative"]+1e-10)
-            
-            for col in row.pes.columns :
-                max_min_diff = row.pes[col].max() - row.pes[col].min()
-                row.pes[col] = (row.pes[col]-row.pes[col].min())/(max_min_diff) if max_min_diff >0 else row.pes[col]-row.pes[col].min()
-                
-            
-        return row
+            row.pes["energy"] = row.pes["energy"] * (1 + oscillation_function)
+            row.pes["derivative"] = (
+                row.pes["derivative"] * (1 + oscillation_function)
+                + row.pes["energy"] * oscillation_derivative
+            )
+            row.pes["inverse_derivative"] = 1.0 / (row.pes["derivative"] + 1e-10)
 
+            for col in row.pes.columns:
+                max_min_diff = row.pes[col].max() - row.pes[col].min()
+                row.pes[col] = (
+                    (row.pes[col] - row.pes[col].min()) / (max_min_diff)
+                    if max_min_diff > 0
+                    else row.pes[col] - row.pes[col].min()
+                )
+
+        return row
 
     df_bad_sample = df_bad_sample.apply(assign_deformation_type, axis=1)
 
@@ -140,7 +148,7 @@ def generate_lennard_jones_samples(
 
     sigma_array = np.random.uniform(1.2, 10.0, n_samples)
     epsilon_array = np.random.uniform(5, 600, n_samples)
-    wall_max_high = np.random.uniform(1000,2000, n_samples) 
+    wall_max_high = np.random.uniform(1000, 2000, n_samples)
     long_range_limit = np.random.uniform(0.05, 0.10, n_samples)
     df_samples = []
 
@@ -168,15 +176,17 @@ def generate_lennard_jones_samples(
 
         # Generate samples
         df = PesModels.lennard_jones_pes(sigma, epsilon, r_min, r_max, size)
-        
-        # Normalize dataframe
-        for col in df.columns :
-            max_min_diff = df[col].max() - df[col].min()
-            df[col] = (df[col]-df[col].min())/(max_min_diff) if max_min_diff >0 else df[col]-df[col].min()
-                 
-            
-        df_samples.append(df)
 
+        # Normalize dataframe
+        for col in df.columns:
+            max_min_diff = df[col].max() - df[col].min()
+            df[col] = (
+                (df[col] - df[col].min()) / (max_min_diff)
+                if max_min_diff > 0
+                else df[col] - df[col].min()
+            )
+
+        df_samples.append(df)
 
     return pd.DataFrame(
         {
