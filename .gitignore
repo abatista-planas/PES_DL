@@ -179,4 +179,4 @@ cython_debug/
 
 
 # Other folders
-./scripts/plots/
+scripts/plots/
