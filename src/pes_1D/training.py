@@ -1,56 +1,78 @@
 """Training and evaluation functions for a toy model."""
 
 from typing import Tuple
-
+import numpy as np
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader
 
 
 def train_model(
-    X_train: torch.Tensor,
-    y_train: torch.Tensor,
+    train_loader: DataLoader,
     model: nn.Module,
     criterion: nn.Module,
     optimizer: torch.optim.Optimizer,
-    epochs: int,
-    verbose: bool = False,
-) -> list[float]:
+    num_epochs: int,
+) -> Tuple[list[float], torch.Tensor]:
     """Trains the model on the training set and returns the trained model and losses."""
-    losses: list[float] = []
+    
+        # initialize losses
+    losses = torch.zeros(num_epochs)
+    trainAcc = []
+    
 
-    for epoch in range(epochs):
-        y_pred = model.forward(X_train)
+    # loop over epochs
+    for epochi in range(num_epochs):
+        # switch on training mode
         model.train()
 
-        loss = criterion(y_pred, y_train)
-        losses.append(loss.item())
-        if verbose and epoch % 10 == 0:
-            print(f"Epoch {epoch}, Loss: {loss.item()}")
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+        # loop over training data batches
+        batchAcc = []
+        batchLoss = []
+        for X, y in train_loader:
+            
+            # forward pass and loss
+            
+            y_pred = model.forward(X)
+            loss = criterion(y_pred, y)
+            
+            # backprop
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-    return losses
+            # loss from this batch
+            batchLoss.append(loss.item())
+
+            # compute training accuracy for this batch
+            # batchAcc.append( 100*torch.mean(((yHat>0) == y).float()).item() )
+            batchAcc.append(
+                100 * torch.mean(((y_pred>0) == y).float()).item()
+            )
+
+        # end of batch loop...
+
+        # now that we've trained through the batches, get their average training accuracy
+        trainAcc.append(float(np.mean(batchAcc)))
+
+        # and get average losses across the batches
+        losses[epochi] = np.mean(batchLoss)
+
+    return trainAcc, losses
 
 
 def test_model(
-    X_test: torch.Tensor,
-    y_test: torch.Tensor,
+    test_loader: DataLoader,
     model: nn.Module,
-    criterion: nn.Module,
-    verbose: bool = True,
-) -> Tuple[float, float]:
+) -> list[float]:
     """Evaluates the model on the test set and returns the loss and accuracy."""
-    with torch.no_grad():
-        y_eval = model.forward(X_test)
-        loss = criterion(y_eval, y_test)
-        test_loss = loss.item()
-        accuracy = (
-            100 * torch.sum(torch.argmax(y_eval, dim=1) == y_test).item() / len(y_test)
-        )
-        if verbose:
-            print("Evaluation:")
-            print(f"Test Loss: {test_loss}")
-            print("Accuracy (%): ", accuracy)
+    testAcc = []
+    model.eval()
+    X, y = next(iter(test_loader))  # extract X,y from test dataloader
+    with torch.no_grad():  # deactivates autograd
+        y_eval = model.forward(X)
+    testAcc.append(
+        float(100 * torch.mean(((y_eval>0) == y).float()).item())
+    )
 
-        return test_loss, accuracy
+    return testAcc
