@@ -10,6 +10,17 @@ from scipy.differentiate import derivative
 from pes_1D.visualization import plot_confusion_matrix, sample_visualization
 
 
+class AuxiliarFunctions:
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def min_max_normalize(data):
+        min_val = np.min(data)
+        max_val = np.max(data)
+        return (data - min_val) / (max_val - min_val)
+
+
 class NoiseFunctions:
     def __init__(self):
         pass
@@ -55,26 +66,77 @@ class NoiseFunctions:
         """Adds Gaussian noise to the energy values."""
         return A * np.random.normal(0.0, noise_level, size=size)
 
+    @staticmethod
+    def random_function(
+        r: npt.NDArray[np.float64],
+    ) -> Tuple[str, npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+        """Generates a random function"""
+        # Generate random coefficients for the functions
+        coeff = np.random.uniform(-1.0, 1.0, 10)
+
+        def norm(x):
+            return AuxiliarFunctions.min_max_normalize(x)
+
+        funct_dict = {
+            "constant": lambda x: np.ones_like(x) * coeff[0],
+            "normal": lambda x: coeff[0] * np.exp(-coeff[1] * x**2),
+            "linear": lambda x: coeff[0] * x + coeff[1],
+            "quadratic": lambda x: coeff[0] * x**2 + coeff[1] * x + coeff[2],
+            "cubic": lambda x: coeff[0] * x**3
+            + coeff[1] * x**2
+            + coeff[2] * x
+            + coeff[3],
+            "quartic": lambda x: coeff[0] * x**4
+            + coeff[1] * x**3
+            + coeff[2] * x**2
+            + coeff[3] * x
+            + coeff[4],
+            "cosine": lambda x: np.cos(coeff[0] * x + coeff[1]),
+            "sine": lambda x: np.sin(coeff[0] * x + coeff[1]),
+            "tan": lambda x: np.tan(coeff[0] * x + coeff[1]),
+            "np.exp": lambda x: np.exp(coeff[0] * x + coeff[1]),
+            "sqrt": lambda x: np.sqrt(np.abs(coeff[0] * x + coeff[1])),
+            "abs": lambda x: np.abs(coeff[0] * x + coeff[1]),
+            "sinh": lambda x: np.sinh(coeff[0] * x + coeff[1]),
+            "cosh": lambda x: np.cosh(coeff[0] * x + coeff[1]),
+            "arcsin": lambda x: np.arcsin(norm(coeff[0] * x + coeff[1])),
+            "arccos": lambda x: np.arccos(norm(coeff[0] * x + coeff[1])),
+            "arctan": lambda x: np.arctan(norm(coeff[0] * x + coeff[1])),
+            "log": lambda x: np.log(np.abs(coeff[0] * x + coeff[1])),
+            "sigmoid": lambda x: 1 / (1 + np.exp(-coeff[0] * x + coeff[1])),
+            "tanh": lambda x: np.tanh(coeff[0] * x + coeff[1]),
+            "relu": lambda x: np.maximum(0, coeff[0] * x + coeff[1]),
+        }
+
+        func_label = np.random.choice(list(funct_dict.keys()))
+        f = funct_dict[func_label]
+        deriv = derivative(f, r)
+
+        return func_label, f(r), deriv.df
+
 
 class PesModels:
+    reudenberg_parameters = {
+        "oxigen_oxigen": [
+            42030.046,
+            -2388.564169,
+            18086.977116,
+            -71760.197585,
+            154738.09175,
+            -215074.85646,
+            214799.54567,
+            -148395.4285,
+            73310.781453,
+        ]
+    }
+
     def __init__(self):
         pass
 
     @staticmethod
-    def lennard_jones(
-        sigma: float, epsilon: float, r: npt.NDArray[np.float64]
-    ) -> npt.NDArray[np.float64]:
-        """Evaluates the Lennard-Jones potential for given parameters and distance"""
-
-        if np.any(r <= 0):
-            raise Exception("Size and range must be positive")
-
-        return 4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)
-
-    @staticmethod
-    def lennard_jones_pes(
-        sigma: float,
-        epsilon: float,
+    def analytical_pes(
+        pes_name: str,
+        parameters: list[float],
         R_min: float,
         R_max: float,
         size: int,
@@ -98,18 +160,52 @@ class PesModels:
 
         r = np.linspace(R_min, R_max, size, dtype=np.float64)
 
-        def pes_lj(r_):
-            return PesModels.lennard_jones(sigma, epsilon, r_)
+        def pes(r_):
+            func = getattr(PesModels, pes_name)
+            return func(parameters, r_)
 
-        pes_derivative = derivative(pes_lj, r)
+        pes_derivative = derivative(pes, r)
         return pd.DataFrame(
             {
                 "r": r,
-                "energy": pes_lj(r),
+                "energy": pes(r),
                 "derivative": pes_derivative.df,
                 "inverse_derivative": 1.0 / (pes_derivative.df + 1e-10),
             }
         )
+
+    @staticmethod
+    def lennard_jones(
+        parameters: list[float], r: npt.NDArray[np.float64]
+    ) -> npt.NDArray[np.float64]:
+        """Evaluates the Lennard-Jones potential for given parameters and distance"""
+
+        if np.any(r <= 0):
+            raise Exception("Size and range must be positive")
+
+        sigma = parameters[0]
+        epsilon = parameters[1]
+        return 4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)
+
+    @staticmethod
+    def reudenberg(
+        coeff: list[float], r: npt.NDArray[np.float64]
+    ) -> npt.NDArray[np.float64]:
+        """Evaluate the Reudenberg potential for given parameters"""
+
+        if np.any(r <= 0):
+            raise Exception("Size and range must be positive")
+
+        c1 = 219.47463
+        c2 = 0.785
+        c3 = 1.307
+
+        pes = np.ones_like(r, dtype=np.float64) * coeff[0]
+
+        for i in range(len(coeff) - 1):
+            pes = pes + coeff[i + 1] * np.exp(-(c3**i) * c2 * r**2) * c1
+
+        return pes
 
 
 def get_model_failure_info(
