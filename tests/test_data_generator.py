@@ -5,7 +5,7 @@ from pandas.testing import assert_frame_equal
 from pes_1D import data_generator as dg  # type: ignore
 
 
-def test_exception_message_lennard_jones_pes():
+def test_exception_message_analytical_pes():
     params = [
         [1.0, 0.5, -1, 1, 10],
         [1.0, 0.5, 1, -1, 10],
@@ -14,11 +14,11 @@ def test_exception_message_lennard_jones_pes():
     ]
     for sigma, epsilon, R_min, R_max, size in params:
         with pytest.raises(Exception) as e_info:
-            dg.lennard_jones_pes(sigma, epsilon, R_min, R_max, size)
+            dg.analytical_pes(sigma, epsilon, R_min, R_max, size)
         assert str(e_info.value) == "Size and range must be positive"
 
 
-def test_lennard_jones_pes():
+def test_analytical_pes():
     df_want = pd.DataFrame(
         {
             "r": [
@@ -48,6 +48,6 @@ def test_lennard_jones_pes():
         }
     )
 
-    df_get = dg.lennard_jones_pes(1.0, 0.5, 1.0, 2.0, 10)
+    df_get = dg.analytical_pes(1.0, 0.5, 1.0, 2.0, 10)
 
     assert_frame_equal(df_get, df_want, atol=1e-16)
