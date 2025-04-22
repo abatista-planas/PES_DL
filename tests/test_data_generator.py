@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
-from pes_1D import data_generator as dg  # type: ignore
+from pes_1D.utils import PesModels  # type: ignore
 
 
 def test_exception_message_analytical_pes():
@@ -14,7 +14,9 @@ def test_exception_message_analytical_pes():
     ]
     for sigma, epsilon, R_min, R_max, size in params:
         with pytest.raises(Exception) as e_info:
-            dg.analytical_pes(sigma, epsilon, R_min, R_max, size)
+            PesModels.analytical_pes(
+                "lennard_jones", [sigma, epsilon], R_min, R_max, size
+            )
         assert str(e_info.value) == "Size and range must be positive"
 
 
@@ -48,6 +50,6 @@ def test_analytical_pes():
         }
     )
 
-    df_get = dg.analytical_pes(1.0, 0.5, 1.0, 2.0, 10)
+    df_get = PesModels.analytical_pes("lennard_jones", [1.0, 0.5], 1.0, 2.0, 10)
 
-    assert_frame_equal(df_get, df_want, atol=1e-16)
+    assert_frame_equal(df_get[["r", "energy"]], df_want, atol=1e-16)
