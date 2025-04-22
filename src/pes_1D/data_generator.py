@@ -7,13 +7,16 @@ import numpy.typing as npt
 import pandas as pd
 import scipy.optimize as optimize
 import torch
+from sklearn.model_selection import train_test_split  # type: ignore
+from torch.utils.data import DataLoader, TensorDataset
 
 from pes_1D.utils import NoiseFunctions, PesModels
 
 
 def generate_discriminator_training_set(
     n_samples: int,
-    size: int,
+    batch_size: int,
+    grid_size: int,
     pes_name_list: list[str] = ["lennard_jones"],
     properties_list: list[str] = ["energy"],
     deformation_list: npt.NDArray[np.str_] = np.array(["outliers", "oscillation"]),
@@ -21,68 +24,42 @@ def generate_discriminator_training_set(
     test_split: float = 0.2,
     gpu: bool = True,
     generator_seed: list[int] = [37, 43],
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, pd.DataFrame]:
+) -> Tuple[DataLoader, DataLoader, pd.DataFrame]:
     """Generates training sets for the Lennard-Jones potential"""
     df_good_sample = generate_true_pes_samples(
-        pes_name_list, int(n_samples / 2), size, generator_seed[0]
+        pes_name_list, int(n_samples / 2), grid_size, generator_seed[0]
     )
 
     df_bad_sample = generate_bad_samples(
         pes_name_list,
         n_samples - int(n_samples / 2),
-        size,
+        grid_size,
         deformation_list,
         seed=generator_seed[1],
     )
 
     df_all = pd.concat([df_good_sample, df_bad_sample])
-    # Shuffle DataFrame in place
-    df_all = df_all.sample(frac=1).reset_index(drop=True)
 
-    label_tensor = torch.tensor(df_all["true_pes"]).flatten()
-
-    def input_format(pes):
-        """Define input format"""
-        if properties_format == "array":
-            return pes[properties_list].values.flatten()
-        else:
-            return pes[properties_list].values
-
-    # Convert continuous variables to a tensor
-    input_arrays = [input_format(pes) for pes in df_all["pes"].values]
-    input_stack = np.stack(input_arrays)
-    input_tensor = torch.tensor(input_stack, dtype=torch.float)
-
-    test_size = int(n_samples * test_split)  # test_split% for testing
-
-    input_train = input_tensor[: n_samples - test_size]
-    input_test = input_tensor[n_samples - test_size : n_samples]
-    label_train = label_tensor[: n_samples - test_size]
-    label_test = label_tensor[n_samples - test_size : n_samples]
-
-    return (
-        input_train.cuda() if gpu else input_train,
-        label_train.cuda() if gpu else label_train,
-        input_test.cuda() if gpu else input_test,
-        label_test.cuda() if gpu else label_test,
-        df_all,
+    return generate_discriminator_training_set_from_df(
+        df_all, batch_size, properties_list, properties_format, test_split, gpu
     )
 
 
 def generate_discriminator_training_set_from_df(
     df_all: pd.DataFrame,
+    batch_size: int = 100,
     properties_list: list[str] = ["energy"],
     properties_format: str = "table",
     test_split: float = 0.2,
     gpu: bool = True,
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, pd.DataFrame]:
+) -> Tuple[DataLoader, DataLoader, pd.DataFrame]:
     """Generates training sets for the Lennard-Jones potential"""
 
-    n_samples = len(df_all)
     # Shuffle DataFrame in place
     df_all = df_all.sample(frac=1).reset_index(drop=True)
 
-    label_tensor = torch.tensor(df_all["true_pes"]).flatten()
+    label_tensor = torch.tensor(df_all["true_pes"].values, dtype=torch.float)
+    label_tensor = label_tensor[:, None]
 
     def input_format(pes):
         """Define input format"""
@@ -96,18 +73,30 @@ def generate_discriminator_training_set_from_df(
     input_stack = np.stack(input_arrays)
     input_tensor = torch.tensor(input_stack, dtype=torch.float)
 
-    test_size = int(n_samples * test_split)  # test_split% for testing
+    # use scikitlearn to split the data
+    train_data, test_data, train_labels, test_labels = train_test_split(
+        input_tensor, label_tensor, test_size=test_split
+    )
 
-    input_train = input_tensor[: n_samples - test_size]
-    input_test = input_tensor[n_samples - test_size : n_samples]
-    label_train = label_tensor[: n_samples - test_size]
-    label_test = label_tensor[n_samples - test_size : n_samples]
+    train_data = train_data.to("cuda" if gpu else "cpu")
+    test_data = test_data.to("cuda" if gpu else "cpu")
+    train_labels = train_labels.to("cuda" if gpu else "cpu")
+    test_labels = test_labels.to("cuda" if gpu else "cpu")
+
+    # then convert them into PyTorch Datasets (note: already converted to tensors)
+    train_data = TensorDataset(train_data, train_labels)
+    test_data = TensorDataset(test_data, test_labels)
+
+    # finally, translate into dataloader objects
+
+    train_loader = DataLoader(
+        train_data, batch_size=batch_size, shuffle=True, drop_last=True
+    )
+    test_loader = DataLoader(test_data, batch_size=test_data.tensors[0].shape[0])
 
     return (
-        input_train.cuda() if gpu else input_train,
-        label_train.cuda() if gpu else label_train,
-        input_test.cuda() if gpu else input_test,
-        label_test.cuda() if gpu else label_test,
+        train_loader,
+        test_loader,
         df_all,
     )
 
