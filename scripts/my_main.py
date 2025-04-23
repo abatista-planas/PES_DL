@@ -12,7 +12,7 @@ from pes_1D.training import test_model, train_model  # type: ignore
 from pes_1D.utils import get_model_failure_info  # type: ignore
 from experiments import Experiment  # type: ignore
 import pandas as pd
-
+import pickle
 # # variational_number_of_pts
 # model_paramaters ={
 #     'in_features' : 128,
@@ -85,7 +85,9 @@ deformation_list = np.array(["outliers","oscillation"])  # Types of deformation 
 #variational_sample size
 
 
-from torch.utils.data import DataLoader, TensorDataset, Subset
+print("torch.cuda.is_available()",torch.cuda.is_available())
+print("device", torch.device('cuda'))
+
 
 df_samples = pd.read_pickle("scripts/data/outliers_oscillation")
 model_paramaters ={
@@ -130,25 +132,27 @@ model_paramaters ={
 
 Experiment.hyperparameter_tuning(
     "training_size",
-    np.arange(100, 200, 100).tolist(),
+    np.arange(100, 5000, 100).tolist(),
     df_samples,
     model_class=AnnDiscriminator,
     model_paramaters=model_paramaters,
     n_repeat=1,
     verbose=True,
-    save=False,
+    save=True,
 )
 
-# Experiment.hyperparameter_tuning(
-#     "lr", 
-#     [(10**-2)*2**n for n in range(2)], 
-#     df_samples, 
-#     model_class=AnnDiscriminator,
-#     model_paramaters=model_paramaters,
-#     n_repeat=1, 
-#     verbose=True, 
-#     save=False
-# )
+
+
+Experiment.hyperparameter_tuning(
+    "lr", 
+    [(10**-5)*2**n for n in range(17)], 
+    df_samples, 
+    model_class=AnnDiscriminator,
+    model_paramaters=model_paramaters,
+    n_repeat=1, 
+    verbose=True, 
+    save=True
+)
 
 # Experiment.hyperparameter_tuning(
 #     "grid_size",

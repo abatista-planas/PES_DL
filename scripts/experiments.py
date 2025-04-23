@@ -1,6 +1,5 @@
 """Experiments with the model for hyperparameters tuning and evaluation."""
 import numpy as np
-import copy
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -261,7 +260,7 @@ class Experiment:
         if hyperparameter == "lr":
             ax.set_xscale('log')
         ax.legend()
-        pickle.dump(fig, open('Accuracy vs '+ hyperparameter+'.fig.pickle', 'wb'))
+        pickle.dump(fig, open('Accuracy_'+ hyperparameter+'.fig.pickle', 'wb'))
     
     @staticmethod
     def configure_model_(hyperparameter, value, model_class, model_paramaters,n_samples, pes_name_list, properties_list,deformation_list, properties_format, test_split, gpu):
