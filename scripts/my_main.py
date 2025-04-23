@@ -36,10 +36,10 @@ import pandas as pd
 # number_of_pts = 128
 # n_samples = 10000
 # test_split = 0.8
-# gpu = True
-# properties_list = ["energy","derivative","inverse_derivative"]  # List of properties to use for training
-# properties_format = "array"  # Format [concatenated array or table] of properties to use for training
-# deformation_list = np.array(["outliers","oscillation"])  # Types of deformation to generate
+gpu = True
+properties_list = ["energy","derivative","inverse_derivative"]  # List of properties to use for training
+properties_format = "array"  # Format [concatenated array or table] of properties to use for training
+deformation_list = np.array(["outliers","oscillation"])  # Types of deformation to generate
 
 
 # df_samples = pd.read_pickle("scripts/data/outliers_oscillation")
@@ -85,38 +85,167 @@ import pandas as pd
 #variational_sample size
 
 
-df_samples = pd.read_pickle("scripts/data/outliers_oscillation")
+from torch.utils.data import DataLoader, TensorDataset, Subset
 
+df_samples = pd.read_pickle("scripts/data/outliers_oscillation")
 model_paramaters ={
-    'in_features' : 128*3,#X_train.shape[1] if properties_format == "array" else number_of_pts,   
-    'hidden_layers' : [512,256,32],
-    'out_features' : 2,
+    'in_features' : 128*3,   
+    'hidden_layers' : [512,128,32],
+    'out_features' : 1,
     }
 
-model =  AnnDiscriminator(model_paramaters)
-model = model.to("cuda") 
+# train_loader,test_loader, _,train_data= generate_discriminator_training_set_from_df(
+#                 df_samples,
+#                 batch_size =50,
+#                 properties_list = properties_list,
+#                 properties_format = properties_format,
+#                 test_split = 0.5,
+#                 gpu=gpu,
+#             )
+
+# train_dataset = Subset(train_data, np.arange(10).tolist())
+# train_loader_subset = DataLoader(train_dataset,batch_size = 50)
 
 
-list_of_sz = np.arange(100, 5000, 100).tolist()
 
-df_accuracy = Experiment.variational_sample_size(
-        df_samples,
-        model,list_of_sz, verbose=True
-    )
-
-# show accuracy as a function of model depth
-fig,ax = plt.subplots(1,figsize=(12,6))
-for column in df_accuracy.columns:
-    accuracy_list = df_accuracy[column].to_numpy()
-    ax.plot(list_of_sz,accuracy_list,'o-',label=column,markerfacecolor='w',markersize=9)
-
-ax.set_ylabel('accuracy')
-ax.set_xlabel('training size')
-ax.set_title('Accuracy vs training size')
-ax.legend()
-plt.show()
+# model =  AnnDiscriminator(model_paramaters)
+# model = model.to("cuda" if gpu else "cpu") 
+# # global parameter
+# num_epochs = 100
+# criterion = nn.BCEWithLogitsLoss()
+# optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
 
+# print("Training the model...")
+# trainAcc,losses = train_model(
+#     train_loader_subset,
+#     model,
+#     criterion,
+#     optimizer,
+#     num_epochs,
+# ) 
+
+
+
+
+Experiment.hyperparameter_tuning(
+    "training_size",
+    np.arange(100, 200, 100).tolist(),
+    df_samples,
+    model_class=AnnDiscriminator,
+    model_paramaters=model_paramaters,
+    n_repeat=1,
+    verbose=True,
+    save=False,
+)
+
+# Experiment.hyperparameter_tuning(
+#     "lr", 
+#     [(10**-2)*2**n for n in range(2)], 
+#     df_samples, 
+#     model_class=AnnDiscriminator,
+#     model_paramaters=model_paramaters,
+#     n_repeat=1, 
+#     verbose=True, 
+#     save=False
+# )
+
+# Experiment.hyperparameter_tuning(
+#     "grid_size",
+#     np.arange(30, 34, 2).tolist(),
+#     df_samples,
+#     model_class=AnnDiscriminator,
+#     model_paramaters=model_paramaters,
+#     n_repeat=3,
+#     verbose=True,
+#     save=False,
+# )
+# n_samples = 4000
+# grid_size = 150
+# batch_size = 100
+# test_split = 0.5
+# pes_name_list = ["lennard_jones"]
+# deformation_list = np.array(["outliers", "oscillation"])  # Types of deformation to generate
+# properties_list = [
+#     "energy",
+#     "derivative",
+#     "inverse_derivative",
+# ]  # List of properties to use for training
+
+# properties_format = "array"  # Format [concatenated array or table] of properties to use for training
+# gpu = True
+
+# train_loader, test_loader, _ = generate_discriminator_training_set(
+#                     n_samples = n_samples,
+#                     batch_size = batch_size,
+#                     grid_size = grid_size,
+#                     pes_name_list = pes_name_list,
+#                     properties_list = properties_list,
+#                     deformation_list = deformation_list,
+#                     properties_format=properties_format,
+#                     test_split = test_split,
+#                     gpu = gpu,
+#                 )
+                
+# model_paramaters ={
+#     'in_features' : grid_size*len(properties_list),   
+#     'hidden_layers' : [512,128,32],
+#     'out_features' : 1,
+#     }
+
+# model =  AnnDiscriminator(model_paramaters)
+# model = model.to("cuda" if gpu else "cpu") 
+
+
+
+# # global parameter
+# num_epochs = 2000
+# criterion = nn.BCEWithLogitsLoss()
+# optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+
+
+# trainAcc,losses = train_model(
+#     train_loader,
+#     model,
+#     criterion,
+#     optimizer,
+#     num_epochs,
+# ) 
+
+# testAcc = test_model(
+#     test_loader,
+#     model,
+# )
+
+# print(f"Training Accuracy:{trainAcc[-1]}")
+# print(f"Test Accuracy:{testAcc[-1]}")
+# plt.plot(range(2,num_epochs), losses[2:])
+
+
+
+# # df_accuracy = Experiment.variational_sample_size(
+# #         df_samples,
+# #         model,list_of_sz, verbose=True
+# #     )
+
+# # show accuracy as a function of model depth
+# fig,ax = plt.subplots(1,figsize=(12,6))
+# for column in df_accuracy.drop("variation_list", axis=1).columns:
+#     accuracy_list = df_accuracy[column].to_numpy()
+#     ax.plot(list_of_sz,accuracy_list,'o-',label=column,markerfacecolor='w',markersize=9)
+
+# ax.set_ylabel('accuracy')
+# ax.set_xlabel('training size')
+# ax.set_title('Accuracy vs training size')
+# ax.legend()
+# plt.show()
+
+# import pickle
+
+# figx = pickle.load(open('FigureObject.fig.pickle', 'rb'))
+
+# plt.show() # Show the figure, edit it, etc.!
 
 
 # # variational architectures

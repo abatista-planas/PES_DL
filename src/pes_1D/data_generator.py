@@ -24,7 +24,7 @@ def generate_discriminator_training_set(
     test_split: float = 0.2,
     gpu: bool = True,
     generator_seed: list[int] = [37, 43],
-) -> Tuple[DataLoader, DataLoader, pd.DataFrame]:
+) -> Tuple[DataLoader, DataLoader, pd.DataFrame, TensorDataset]:
     """Generates training sets for the Lennard-Jones potential"""
     df_good_sample = generate_true_pes_samples(
         pes_name_list, int(n_samples / 2), grid_size, generator_seed[0]
@@ -52,7 +52,7 @@ def generate_discriminator_training_set_from_df(
     properties_format: str = "table",
     test_split: float = 0.2,
     gpu: bool = True,
-) -> Tuple[DataLoader, DataLoader, pd.DataFrame]:
+) -> Tuple[DataLoader, DataLoader, pd.DataFrame, TensorDataset]:
     """Generates training sets for the Lennard-Jones potential"""
 
     # Shuffle DataFrame in place
@@ -74,18 +74,18 @@ def generate_discriminator_training_set_from_df(
     input_tensor = torch.tensor(input_stack, dtype=torch.float)
 
     # use scikitlearn to split the data
-    train_data, test_data, train_labels, test_labels = train_test_split(
+    train_input, test_input, train_labels, test_labels = train_test_split(
         input_tensor, label_tensor, test_size=test_split
     )
 
-    train_data = train_data.to("cuda" if gpu else "cpu")
-    test_data = test_data.to("cuda" if gpu else "cpu")
+    train_input = train_input.to("cuda" if gpu else "cpu")
+    test_input = test_input.to("cuda" if gpu else "cpu")
     train_labels = train_labels.to("cuda" if gpu else "cpu")
     test_labels = test_labels.to("cuda" if gpu else "cpu")
 
     # then convert them into PyTorch Datasets (note: already converted to tensors)
-    train_data = TensorDataset(train_data, train_labels)
-    test_data = TensorDataset(test_data, test_labels)
+    train_data = TensorDataset(train_input, train_labels)
+    test_data = TensorDataset(test_input, test_labels)
 
     # finally, translate into dataloader objects
 
@@ -98,6 +98,7 @@ def generate_discriminator_training_set_from_df(
         train_loader,
         test_loader,
         df_all,
+        train_data,
     )
 
 
