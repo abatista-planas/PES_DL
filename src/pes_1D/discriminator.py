@@ -1,7 +1,9 @@
+import numpy as np
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchsummary import summary  # type: ignore
-
+#from torchsummary import summary  # type: ignore
+import torch.autograd.profiler as profiler
 
 class AnnDiscriminator(nn.Module):
     def __init__(self, model_paramaters):
@@ -24,7 +26,19 @@ class AnnDiscriminator(nn.Module):
             model_paramaters["hidden_layers"][-1], model_paramaters["out_features"]
         )
         pass
+    
+    
+    def forward_profiler(self, x, mask):
+        with profiler.record_function("LINEAR PASS"):
+            x = self.forward(x)
+    
 
+        with profiler.record_function("MASK INDICES"):
+            threshold = x.sum(axis=1).mean()
+            hi_idx = (mask > threshold).nonzero(as_tuple=True)
+
+        return x, hi_idx
+        
     def forward(self, x):
         # input layer
         x = F.relu(self.layers["input"](x))
@@ -37,8 +51,8 @@ class AnnDiscriminator(nn.Module):
         x = self.layers["output"](x)
         return x
 
-    def summary(self, input_size):
-        summary(self, input_size=(1, input_size))
+    # def summary(self, input_size):
+    #     summary(self, input_size=(1, input_size))
 
     def reset(self):
         for layer in self.layers:

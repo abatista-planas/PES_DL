@@ -14,7 +14,7 @@ from pes_1D.utils import NoiseFunctions, PesModels
 
 
 def generate_discriminator_training_set(
-    n_samples: int,
+    n_samples: list[int],
     batch_size: int,
     grid_size: int,
     pes_name_list: list[str] = ["lennard_jones"],
@@ -26,13 +26,14 @@ def generate_discriminator_training_set(
     generator_seed: list[int] = [37, 43],
 ) -> Tuple[DataLoader, DataLoader, pd.DataFrame, TensorDataset]:
     """Generates training sets for the Lennard-Jones potential"""
+    
     df_good_sample = generate_true_pes_samples(
-        pes_name_list, int(n_samples / 2), grid_size, generator_seed[0]
+        pes_name_list, n_samples, grid_size, generator_seed[0]
     )
 
     df_bad_sample = generate_bad_samples(
         pes_name_list,
-        n_samples - int(n_samples / 2),
+        n_samples,
         grid_size,
         deformation_list,
         seed=generator_seed[1],
@@ -43,16 +44,15 @@ def generate_discriminator_training_set(
     return generate_discriminator_training_set_from_df(
         df_all, batch_size, properties_list, properties_format, test_split, gpu
     )
-
-
-def generate_discriminator_training_set_from_df(
+    
+def split_data(
     df_all: pd.DataFrame,
-    batch_size: int = 100,
     properties_list: list[str] = ["energy"],
     properties_format: str = "table",
     test_split: float = 0.2,
     gpu: bool = True,
-) -> Tuple[DataLoader, DataLoader, pd.DataFrame, TensorDataset]:
+    
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """Generates training sets for the Lennard-Jones potential"""
 
     # Shuffle DataFrame in place
@@ -74,24 +74,54 @@ def generate_discriminator_training_set_from_df(
     input_tensor = torch.tensor(input_stack, dtype=torch.float)
 
     # use scikitlearn to split the data
-    train_input, test_input, train_labels, test_labels = train_test_split(
-        input_tensor, label_tensor, test_size=test_split
+    if test_split <= 0.0 or test_split >= 1.0:
+        train_input = input_tensor
+        test_input = input_tensor
+        train_labels = label_tensor
+        test_labels = label_tensor
+    else:
+        train_input, test_input, train_labels, test_labels =  train_test_split(
+            input_tensor, 
+            label_tensor, 
+            test_size= test_split
+        )
+        
+    
+        
+    return  (
+        train_input.to("cuda" if gpu else "cpu"),
+        test_input.to("cuda" if gpu else "cpu"),
+        train_labels.to("cuda" if gpu else "cpu"),
+        test_labels.to("cuda" if gpu else "cpu"),  
     )
 
-    train_input = train_input.to("cuda" if gpu else "cpu")
-    test_input = test_input.to("cuda" if gpu else "cpu")
-    train_labels = train_labels.to("cuda" if gpu else "cpu")
-    test_labels = test_labels.to("cuda" if gpu else "cpu")
+def generate_discriminator_training_set_from_df(
+    df_all: pd.DataFrame,
+    batch_size: int = 100,
+    properties_list: list[str] = ["energy"],
+    properties_format: str = "table",
+    test_split: float = 0.2,
+    gpu: bool = True,
+    
+) -> Tuple[DataLoader, DataLoader, pd.DataFrame, TensorDataset]:
+    """Generates training sets for the Lennard-Jones potential"""
 
+    train_input, test_input, train_labels, test_labels  = split_data(
+                                                            df_all,
+                                                            properties_list,
+                                                            properties_format,
+                                                            test_split,
+                                                            gpu,
+                                                            )
+    
     # then convert them into PyTorch Datasets (note: already converted to tensors)
     train_data = TensorDataset(train_input, train_labels)
     test_data = TensorDataset(test_input, test_labels)
-
+    
+    
     # finally, translate into dataloader objects
 
-    train_loader = DataLoader(
-        train_data, batch_size=batch_size, shuffle=True, drop_last=True
-    )
+    train_loader = DataLoader(train_data, batch_size=batch_size, drop_last=True)
     test_loader = DataLoader(test_data, batch_size=test_data.tensors[0].shape[0])
 
     return (
@@ -104,7 +134,7 @@ def generate_discriminator_training_set_from_df(
 
 def generate_bad_samples(
     pes_name_list: list[str],
-    n_samples: int,
+    n_samples: list[int],
     size: int,
     deformation_list: npt.NDArray[np.str_] = np.array(["outliers", "oscillation"]),
     seed: int = 33,
@@ -191,38 +221,45 @@ def generate_bad_samples(
 
 
 def generate_true_pes_samples(
-    pes_name_list: list[str], n_samples: int, size: int, seed: int = 33
+    pes_name_list: list[str], n_samples: list[int], size: int, seed: int = 33
 ) -> pd.DataFrame:
     """Generates a set of samples"""
 
+    total_samples = sum(n_samples)
+    
     if len(pes_name_list) == 0:
         return pd.DataFrame(
             {
-                "model_type": [""] * n_samples,
-                "true_pes": [0] * n_samples,
-                "parameters": [{}] * n_samples,
-                "pes": [pd.DataFrame()] * n_samples,
-                "modified_pes": [0] * n_samples,
-                "deformation_type": [""] * n_samples,
-                "deformation_parameters": [{}] * n_samples,
+                "model_type": [""] * total_samples,
+                "true_pes": [0] * total_samples,
+                "parameters": [{}] * total_samples,
+                "pes": [pd.DataFrame()] * total_samples,
+                "modified_pes": [0] * total_samples,
+                "deformation_type": [""] * total_samples,
+                "deformation_parameters": [{}] * total_samples,
             }
         )
 
-    sample_count = n_samples
+   
     df_pes = pd.DataFrame()
 
-    for pes_name in pes_name_list:
-        if sample_count < 1:
-            break
+    for i,pes_name in enumerate(pes_name_list):
+
         if pes_name == "lennard_jones":
-            parameters_array = np.zeros((n_samples, 2))
-            parameters_array[:, 0] = np.random.uniform(1.2, 10.0, n_samples)
-            parameters_array[:, 1] = np.random.uniform(5, 2000, n_samples)
+            parameters_array = np.zeros((n_samples[i], 2))
+            parameters_array[:, 0] = np.random.uniform(1.2, 10.0, n_samples[i]) #sigma
+            parameters_array[:, 1] = np.random.uniform(5, 100000, n_samples[i]) #epsilon
             df = generate_analytical_pes_samples(pes_name, parameters_array, size, seed)
-            sample_count = 0
+  
+        elif pes_name == "morse":
+            parameters_array = np.zeros((n_samples[i], 3))
+            parameters_array[:, 0] = np.random.uniform(5, 100000, n_samples[i]) # D_e
+            parameters_array[:, 1] = np.random.uniform(2.5, 10, n_samples[i]) # alpha
+            parameters_array[:, 2] = np.random.uniform(1.2, 10.0, n_samples[i]) # r_0
+            df = generate_analytical_pes_samples(pes_name, parameters_array, size, seed)
 
         elif pes_name == "reudenberg":
-            number_of_samples = min(sample_count, len(PesModels.reudenberg_parameters))
+            number_of_samples = min(n_samples[i], len(PesModels.reudenberg_parameters))
             keys = PesModels.reudenberg_parameters.keys()
             reudenberg_keys = list(keys)[:number_of_samples]
 
@@ -235,11 +272,9 @@ def generate_true_pes_samples(
             for i, key in enumerate(reudenberg_keys):
                 parameters_array[i, :] = PesModels.reudenberg_parameters[key]
 
-            sample_count = sample_count - number_of_samples
             df = generate_analytical_pes_samples(pes_name, parameters_array, size, seed)
             df["model_type"] = ["reudenberg_" + key for key in reudenberg_keys]
-        else:
-            sample_count = 0
+
 
         df_pes = pd.concat([df_pes, df], axis=0, ignore_index=True)
 

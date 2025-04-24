@@ -84,21 +84,21 @@ def sample_visualization(
         if count < 15:
             if df_size == 1:
                 row.pes.plot(
-                    label=row.deformation_type,
+                    label=row.model_type + row.deformation_type,
                     x="r",
                     y="energy",
                 )
             elif ncol == 1:
                 row.pes.plot(
                     ax=axs[count],
-                    label=row.deformation_type,
+                    label=row.model_type + row.deformation_type,
                     x="r",
                     y="energy",
                 )
             else:
                 row.pes.plot(
                     ax=axs[int(count / ncol)][count % ncol],
-                    label=row.deformation_type,
+                    label=row.model_type + row.deformation_type,
                     x="r",
                     y="energy",
                 )
@@ -113,4 +113,23 @@ def sample_visualization(
             y="energy",
             label = df_plot.iloc[0].model_type + df_plot.iloc[0].deformation_type,
         )
-plt.show()  
+        plt.show()  
+
+
+def plot_hyperparameter(hyperparameter):
+    df = pd.read_pickle("accuracy_"+hyperparameter+".pkl")
+    
+    fig,ax = plt.subplots(1,figsize=(12,6))
+    for column in df.drop("variation_list", axis=1).columns:
+        accuracy_list = df[column].to_numpy()
+        variation_list = df["variation_list"].to_numpy()
+        ax.plot(variation_list,accuracy_list,'o-',label=column,markerfacecolor='w',markersize=9)
+
+    ax.set_ylabel('accuracy')
+    ax.set_xlabel(hyperparameter)
+    ax.set_title('Accuracy vs '+ hyperparameter)
+    if hyperparameter == "lr":
+        ax.set_xscale('log')
+    ax.legend()
+    plt.show()
+    return df,fig,ax

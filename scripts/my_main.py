@@ -13,146 +13,50 @@ from pes_1D.utils import get_model_failure_info  # type: ignore
 from experiments import Experiment  # type: ignore
 import pandas as pd
 import pickle
-# # variational_number_of_pts
-# model_paramaters ={
-#     'in_features' : 128,
-#     'hidden_layers' : [512,128,32],
-#     'out_features' : 2,
-#     }
-# list_of_points = np.arange(30, 200, 2).tolist()
-# accuracy_list = Experiment.variational_number_of_pts(AnnDiscriminator,model_paramaters,list_of_points)
-
-# # show accuracy as a function of model depth
-# fig,ax = plt.subplots(1,figsize=(12,6))
-
-# ax.plot(list_of_points,accuracy_list,'o-',markerfacecolor='w',markersize=9)
-# ax.set_ylabel('accuracy')
-# ax.set_xlabel('Number of hidden units')
-# ax.set_title('Accuracy')
-# plt.show()
+from pes_1D.visualization import sample_visualization  # type: ignore
 
 
-# # variational_learning_rate
-# number_of_pts = 128
-# n_samples = 10000
-# test_split = 0.8
-gpu = True
-properties_list = ["energy","derivative","inverse_derivative"]  # List of properties to use for training
-properties_format = "array"  # Format [concatenated array or table] of properties to use for training
-deformation_list = np.array(["outliers","oscillation"])  # Types of deformation to generate
+
+
+# gpu = True
+# properties_list = ["energy","derivative","inverse_derivative"]  # List of properties to use for training
+# properties_format = "array"  # Format [concatenated array or table] of properties to use for training
+# deformation_list = np.array(["outliers","oscillation"])  # Types of deformation to generate
 
 
 # df_samples = pd.read_pickle("scripts/data/outliers_oscillation")
-
-# X_train, y_train, X_test, y_test, df_samples = generate_discriminator_training_set_from_df(
-#     df_samples,
-#     properties_list,
-#     properties_format,
-#     test_split,
-#     gpu,
-#     )
-
-# model_paramaters ={
-#     'in_features' : X_train.shape[1] if properties_format == "array" else number_of_pts,   
+# model_parameters ={
+#     'in_features' : 128*3,   
 #     'hidden_layers' : [512,128,32],
-#     'out_features' : 2,
+#     'out_features' : 1,
 #     }
 
-# model =  AnnDiscriminator(model_paramaters)
-# model = model.to("cuda" if gpu else "cpu") 
-
-
-# init_val = 0.00001
-# list_of_lr = [init_val*2**n for n in range(17)]
-
-# accuracy_list = Experiment.variational_learning_rate(
-#         X_train, y_train, X_test, y_test,
-#         model,list_of_lr, verbose=True
-#     )
-
-# # show accuracy as a function of model depth
-# fig,ax = plt.subplots(1,figsize=(12,6))
-
-# ax.plot(list_of_lr,accuracy_list,'o-',markerfacecolor='w',markersize=9)
-# ax.set_ylabel('accuracy')
-# ax.set_xlabel('learning rate')
-# ax.set_xscale('log')
-# ax.set_title('Accuracy vs lr')
-# plt.show()
 
 
 
-#variational_sample size
-
-
-print("torch.cuda.is_available()",torch.cuda.is_available())
-print("device", torch.device('cuda'))
-
-
-df_samples = pd.read_pickle("scripts/data/outliers_oscillation")
-model_paramaters ={
-    'in_features' : 128*3,   
-    'hidden_layers' : [512,128,32],
-    'out_features' : 1,
-    }
-
-# train_loader,test_loader, _,train_data= generate_discriminator_training_set_from_df(
-#                 df_samples,
-#                 batch_size =50,
-#                 properties_list = properties_list,
-#                 properties_format = properties_format,
-#                 test_split = 0.5,
-#                 gpu=gpu,
-#             )
-
-# train_dataset = Subset(train_data, np.arange(10).tolist())
-# train_loader_subset = DataLoader(train_dataset,batch_size = 50)
+# Experiment.hyperparameter_tuning(
+#     "training_size",
+#     np.arange(100, 5000, 100).tolist(),
+#     df_samples,
+#     model_class=AnnDiscriminator,
+#     model_parameters = model_parameters,
+#     n_repeat=1,
+#     verbose=True,
+#     save=True,
+# )
 
 
 
-# model =  AnnDiscriminator(model_paramaters)
-# model = model.to("cuda" if gpu else "cpu") 
-# # global parameter
-# num_epochs = 100
-# criterion = nn.BCEWithLogitsLoss()
-# optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-
-
-# print("Training the model...")
-# trainAcc,losses = train_model(
-#     train_loader_subset,
-#     model,
-#     criterion,
-#     optimizer,
-#     num_epochs,
-# ) 
-
-
-
-
-Experiment.hyperparameter_tuning(
-    "training_size",
-    np.arange(100, 5000, 100).tolist(),
-    df_samples,
-    model_class=AnnDiscriminator,
-    model_paramaters=model_paramaters,
-    n_repeat=1,
-    verbose=True,
-    save=True,
-)
-
-
-
-Experiment.hyperparameter_tuning(
-    "lr", 
-    [(10**-5)*2**n for n in range(17)], 
-    df_samples, 
-    model_class=AnnDiscriminator,
-    model_paramaters=model_paramaters,
-    n_repeat=1, 
-    verbose=True, 
-    save=True
-)
+# Experiment.hyperparameter_tuning(
+#     "lr", 
+#     [(10**-5)*2**n for n in range(17)], 
+#     df_samples, 
+#     model_class=AnnDiscriminator,
+#     model_paramaters=model_paramaters,
+#     n_repeat=1, 
+#     verbose=True, 
+#     save=True
+# )
 
 # Experiment.hyperparameter_tuning(
 #     "grid_size",
@@ -164,115 +68,121 @@ Experiment.hyperparameter_tuning(
 #     verbose=True,
 #     save=False,
 # )
-# n_samples = 4000
-# grid_size = 150
-# batch_size = 100
-# test_split = 0.5
-# pes_name_list = ["lennard_jones"]
-# deformation_list = np.array(["outliers", "oscillation"])  # Types of deformation to generate
-# properties_list = [
-#     "energy",
-#     "derivative",
-#     "inverse_derivative",
-# ]  # List of properties to use for training
-
-# properties_format = "array"  # Format [concatenated array or table] of properties to use for training
-# gpu = True
-
-# train_loader, test_loader, _ = generate_discriminator_training_set(
-#                     n_samples = n_samples,
-#                     batch_size = batch_size,
-#                     grid_size = grid_size,
-#                     pes_name_list = pes_name_list,
-#                     properties_list = properties_list,
-#                     deformation_list = deformation_list,
-#                     properties_format=properties_format,
-#                     test_split = test_split,
-#                     gpu = gpu,
-#                 )
-                
-# model_paramaters ={
-#     'in_features' : grid_size*len(properties_list),   
-#     'hidden_layers' : [512,128,32],
-#     'out_features' : 1,
-#     }
-
-# model =  AnnDiscriminator(model_paramaters)
-# model = model.to("cuda" if gpu else "cpu") 
 
 
+n_samples = [2000]
+grid_size = 150
+batch_size = 50
+test_split = 0.8
+pes_name_list = ["lennard_jones"]
+deformation_list = np.array(["outliers", "oscillation"])  # Types of deformation to generate
+properties_list = [
+    "energy",
+    "derivative",
+    "inverse_derivative",
+]  # List of properties to use for training
 
-# # global parameter
-# num_epochs = 2000
-# criterion = nn.BCEWithLogitsLoss()
-# optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+properties_format = "array"  # Format [concatenated array or table] of properties to use for training
+gpu = True
 
+train_loader, test_loader, df_samples ,_= generate_discriminator_training_set(
+                    n_samples = n_samples,
+                    batch_size = batch_size,
+                    grid_size = grid_size,
+                    pes_name_list = pes_name_list,
+                    properties_list = properties_list,
+                    deformation_list = deformation_list,
+                    properties_format=properties_format,
+                    test_split = test_split,
+                    gpu = gpu,
+                )
 
+sample_visualization(df_samples) 
+              
+model_paramaters ={
+    'in_features' : grid_size*len(properties_list),   
+    'hidden_layers' : [512,128,32],
+    'out_features' : 1,
+    }
 
-# trainAcc,losses = train_model(
-#     train_loader,
-#     model,
-#     criterion,
-#     optimizer,
-#     num_epochs,
-# ) 
+model =  AnnDiscriminator(model_paramaters)
+model = model.to("cuda" if gpu else "cpu") 
 
-# testAcc = test_model(
-#     test_loader,
-#     model,
-# )
+# global parameter
+num_epochs = 2000
+criterion = nn.BCEWithLogitsLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
-# print(f"Training Accuracy:{trainAcc[-1]}")
-# print(f"Test Accuracy:{testAcc[-1]}")
+# Train the model
+print("Training the model...")
+trainAcc,losses = train_model(
+    train_loader,
+    model,
+    criterion,
+    optimizer,
+    num_epochs,
+) 
+
+print('')
+testAcc = test_model(
+    test_loader,
+    model,
+    device="cuda",
+)
+
+print(f"Training Accuracy:{trainAcc[-1]}")
+print(f"Test Accuracy:{testAcc}")
 # plt.plot(range(2,num_epochs), losses[2:])
-
-
-
-# # df_accuracy = Experiment.variational_sample_size(
-# #         df_samples,
-# #         model,list_of_sz, verbose=True
-# #     )
-
-# # show accuracy as a function of model depth
-# fig,ax = plt.subplots(1,figsize=(12,6))
-# for column in df_accuracy.drop("variation_list", axis=1).columns:
-#     accuracy_list = df_accuracy[column].to_numpy()
-#     ax.plot(list_of_sz,accuracy_list,'o-',label=column,markerfacecolor='w',markersize=9)
-
-# ax.set_ylabel('accuracy')
-# ax.set_xlabel('training size')
-# ax.set_title('Accuracy vs training size')
-# ax.legend()
 # plt.show()
 
-# import pickle
+# Data not included in the training set
 
-# figx = pickle.load(open('FigureObject.fig.pickle', 'rb'))
-
-# plt.show() # Show the figure, edit it, etc.!
-
-
-# # variational architectures
-# model_paramaters ={
-#     'in_features' : 128,
-#     'hidden_layers' : [512,128,32],
-#     'out_features' : 2,
-#     }
-# list_of_points = np.random.randint(2, 512, 1000).tolist()
-# accuracy_list = Experiment.variational_number_of_pts(AnnDiscriminator,model_paramaters,list_of_points)
-
-# # show accuracy as a function of model depth
-# fig,ax = plt.subplots(1,figsize=(12,6))
-
-# ax.plot(list_of_points,accuracy_list,'o-',markerfacecolor='w',markersize=9)
-# ax.set_ylabel('accuracy')
-# ax.set_xlabel('Number of hidden units')
-# ax.set_title('Accuracy')
-# plt.show()
+# All trues
+df_real_pes = generate_true_pes_samples(["reudenberg","morse"], [1,999], grid_size)
 
 
 
-n_samples = 100
+# All falses
+df_random_fns = generate_bad_samples(
+    pes_name_list=["morse"],
+    n_samples=[1000],
+    deformation_list = np.array(["outliers", "oscillation"]),
+    size=grid_size,
+)
+
+df_pes_non_included =pd.concat([df_real_pes,df_random_fns] ,axis=0, ignore_index=True)
+
+test_loader_non_included,_,df_pes_non_included,_= generate_discriminator_training_set_from_df(
+    df_pes_non_included,
+    batch_size = 2000,
+    properties_list = properties_list,
+    properties_format = properties_format,
+    test_split = 0.00,
+    gpu=gpu,
+)
+
+accuracy = test_model(test_loader_non_included, model,device="cuda")
+print(f"NonIncluded Accuracy :{accuracy}")
+
+get_model_failure_info(df_pes_non_included, test_loader_non_included, model)
+
+
+# print("Testing the model on random functions...")
+# # Test the model
+# accuracy = test_model(test_loader_non_included, model)
+# print(len(accuracy))
+# print(f"Test Accuracy in the Non Included Dataset:{accuracy[-1]}")
+
+
+
+# print("Testing the model on random functions...")
+# # Test the model
+# test_loss, accuracy = test_model(X_outsiders, y_outsiders, model, criterion)
+
+# get_model_failure_info(df_pes_outsiders, X_outsiders, y_outsiders, model)
+
+
+
 # df = generate_reudenberg_samples(1,128)
 
 

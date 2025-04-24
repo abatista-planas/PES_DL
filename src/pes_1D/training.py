@@ -64,15 +64,15 @@ def train_model(
 def test_model(
     test_loader: DataLoader,
     model: nn.Module,
-) -> list[float]:
+    device: str = "cpu",
+) -> float:
     """Evaluates the model on the test set and returns the loss and accuracy."""
-    testAcc = []
+ 
     model.eval()
     X, y = next(iter(test_loader))  # extract X,y from test dataloader
+    X, y = X.to(device), y.to(device)
     with torch.no_grad():  # deactivates autograd
         y_eval = model.forward(X)
-    testAcc.append(
-        float(100 * torch.mean(((y_eval>0) == y).float()).item())
-    )
 
-    return testAcc
+
+    return float(100 * torch.mean(((y_eval>0) == y).float()).item())
