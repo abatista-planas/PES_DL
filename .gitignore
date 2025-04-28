@@ -182,3 +182,4 @@ cython_debug/
 scripts/plots/
 .conda
 scripts/tuning/results/
+*.ipynb

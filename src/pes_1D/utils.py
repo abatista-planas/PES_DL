@@ -4,7 +4,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 import torch
-from scipy.differentiate import derivative
+from scipy.differentiate import derivative  # type: ignore
 
 from pes_1D.visualization import plot_confusion_matrix, sample_visualization
 
