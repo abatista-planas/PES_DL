@@ -12,4 +12,4 @@ module load conda
 conda activate pes
 
 ## Execute the python script
-python program.py
+python script_test.py
