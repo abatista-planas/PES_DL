@@ -1,15 +1,122 @@
+from typing import Tuple
+
 import numpy as np
 import torch
+import torch.autograd.profiler as profiler
 import torch.nn as nn
 import torch.nn.functional as F
-#from torchsummary import summary  # type: ignore
-import torch.autograd.profiler as profiler
+from torch.utils.data import DataLoader
+from torchsummary import summary  # type: ignore
 
-class AnnDiscriminator(nn.Module):
+
+class Discriminator(nn.Module):
+    def __init__(self):
+        super(Discriminator, self).__init__()
+
+        self.layers = nn.ModuleDict()
+        pass
+
+    def forward_profiler(self, x, mask):
+        with profiler.record_function("LINEAR PASS"):
+            x = self.forward(x)
+
+        with profiler.record_function("MASK INDICES"):
+            threshold = x.sum(axis=1).mean()
+            hi_idx = (mask > threshold).nonzero(as_tuple=True)
+
+        return x, hi_idx
+
+    def forward(self, x):
+        pass
+
+    def reset(self):
+        for layer in self.layers:
+            if hasattr(self.layers[layer], "reset_parameters"):
+                self.layers[layer].reset_parameters()
+
+    def generic_summary(self, model_name, input_size):
+        print("Model Summary: ")
+        print("Model architecture: ", model_name)
+        return summary(self, input_size)
+
+    def count_parameters(self) -> int:
+        """Count the number of trainable parameters in the model."""
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+    def test_model(
+        self,
+        test_loader: DataLoader,
+        device: str = "cpu",
+    ) -> Tuple[float, torch.Tensor, torch.Tensor]:
+        """Evaluates the model on the test set and returns the loss and accuracy."""
+
+        self.eval()
+        X, y = next(iter(test_loader))  # extract X,y from test dataloader
+        X, y = X.to(device), y.to(device)
+        with torch.no_grad():  # deactivates autograd
+            y_eval = self.forward(X)
+
+        return (
+            float(100 * torch.mean(((y_eval > 0) == y).float()).item()),
+            y_eval,
+            y,
+        )
+
+    def train_model(
+        self,
+        train_loader: DataLoader,
+        criterion: nn.Module,
+        optimizer: torch.optim.Optimizer,
+        num_epochs: int,
+    ) -> Tuple[list[float], torch.Tensor]:
+        """Trains the model on the training set and returns the trained model and losses."""
+
+        # initialize losses
+        losses = torch.zeros(num_epochs)
+        trainAcc = []
+
+        # loop over epochs
+        for epochi in range(num_epochs):
+            # switch on training mode
+            self.train()
+
+            # loop over training data batches
+            batchAcc = []
+            batchLoss = []
+            for X, y in train_loader:
+                # forward pass and loss
+
+                y_pred = self.forward(X)
+                loss = criterion(y_pred, y)
+
+                # backprop
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+                # loss from this batch
+                batchLoss.append(loss.item())
+
+                # compute training accuracy for this batch
+                # batchAcc.append( 100*torch.mean(((yHat>0) == y).float()).item() )
+                batchAcc.append(100 * torch.mean(((y_pred > 0) == y).float()).item())
+
+            # end of batch loop...
+
+            # now that we've trained through the batches, get their average training accuracy
+            trainAcc.append(float(np.mean(batchAcc)))
+
+            # and get average losses across the batches
+            losses[epochi] = np.mean(batchLoss)
+
+        return trainAcc, losses
+
+
+class AnnDiscriminator(Discriminator):
     def __init__(self, model_paramaters):
         super(AnnDiscriminator, self).__init__()
 
-        self.layers = nn.ModuleDict()
+        self.model_paramaters = model_paramaters
         # input layer
         self.layers["input"] = nn.Linear(
             model_paramaters["in_features"], model_paramaters["hidden_layers"][0]
@@ -25,20 +132,7 @@ class AnnDiscriminator(nn.Module):
         self.layers["output"] = nn.Linear(
             model_paramaters["hidden_layers"][-1], model_paramaters["out_features"]
         )
-        pass
-    
-    
-    def forward_profiler(self, x, mask):
-        with profiler.record_function("LINEAR PASS"):
-            x = self.forward(x)
-    
 
-        with profiler.record_function("MASK INDICES"):
-            threshold = x.sum(axis=1).mean()
-            hi_idx = (mask > threshold).nonzero(as_tuple=True)
-
-        return x, hi_idx
-        
     def forward(self, x):
         # input layer
         x = F.relu(self.layers["input"](x))
@@ -51,11 +145,44 @@ class AnnDiscriminator(nn.Module):
         x = self.layers["output"](x)
         return x
 
-    # def summary(self, input_size):
-    #     summary(self, input_size=(1, input_size))
+    def summary(self):
+        return self.generic_summary(
+            "AnnDiscriminator", (1, self.model_paramaters["in_features"])
+        )
 
-    def reset(self):
-        for layer in self.layers:
-            if hasattr(self.layers[layer], "reset_parameters"):
-                self.layers[layer].reset_parameters()
-                
+
+class CnnDiscriminator(Discriminator):
+    def __init__(self, model_paramaters):
+        """_summary_
+
+        Args:
+            model_paramaters (_type_): "in_features"
+
+        """
+        super(CnnDiscriminator, self).__init__()
+
+        self.features = nn.Sequential(
+            nn.Conv1d(3, 16, kernel_size=5, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool1d(kernel_size=2),  # length: 150 -> 75
+            nn.Conv1d(16, 32, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool1d(kernel_size=2),  # length: 75 -> 37 (floor)
+        )
+
+        # Classifier: flatten and two linear layers
+        self.classifier = nn.Sequential(
+            nn.Flatten(),  # shape: (batch, 32*37)
+            nn.Linear(32 * 37, 128),
+            nn.ReLU(inplace=True),
+            # nn.Dropout(p=0.1),
+            nn.Linear(128, 1),
+        )
+
+    def forward(self, x):
+        x = self.features(x)
+        return self.classifier(x)
+
+    def summary(self):
+        print("CnnDiscriminator")
+        return self.generic_summary("CnnDiscriminator", (3, 150))

@@ -4,13 +4,9 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 import torch
-import torch.nn as nn
-import torch.autograd.profiler as profiler
-from torch.utils.data import DataLoader
 from scipy.differentiate import derivative
 
 from pes_1D.visualization import plot_confusion_matrix, sample_visualization
-
 
 
 class AuxiliarFunctions:
@@ -211,32 +207,30 @@ class PesModels:
         return pes
 
     @staticmethod
-    def morse(parameters: list[float], r: npt.NDArray[np.float64]
-               ) -> npt.NDArray[np.float64]:
+    def morse(
+        parameters: list[float], r: npt.NDArray[np.float64]
+    ) -> npt.NDArray[np.float64]:
         """Evaluate the Morse potential for given parameters"""
         if np.any(r <= 0):
             raise Exception("Size and range must be positive")
         D_e = parameters[0]
         a = parameters[1]
         r_0 = parameters[2]
-        
+
         return D_e * (1.0 - np.exp(-a * (r - r_0))) ** 2
+
 
 def get_model_failure_info(
     df_samples: pd.DataFrame,
-    test_loader: torch.Tensor,
-    model: nn.Module,
+    y_eval: torch.Tensor,
+    y: torch.Tensor,
 ):
     """Returns the failure information of the model."""
     # This function is a placeholder for the actual implementation
     # It should return the failure information of the model
-    model.eval()
-    X, y = next(iter(test_loader))  # extract X,y from test dataloader
-    with torch.no_grad():  # deactivates autograd
-        y_eval = model.forward(X)
-    
-    y_true_np = (1*y).cpu().numpy()
-    y_pred_np = (1*(y_eval>0)).cpu().numpy()
+
+    y_true_np = (1 * y).cpu().numpy()
+    y_pred_np = (1 * (y_eval > 0)).cpu().numpy()
 
     plot_confusion_matrix(y_true_np, y_pred_np, title="Confusion Matrix")
     failure_index = np.nonzero(y_true_np != y_pred_np)[0].tolist()
@@ -251,19 +245,3 @@ def get_model_failure_info(
     print("\n")
 
     sample_visualization(df_failure)
-
-
-def model_profiler(model_class,model_parameters,n_samples):
-
-    model = model_class(model_parameters).cuda()
-    input = torch.rand(n_samples,n_samples,model_parameters['in_features']).cuda()
-    mask = torch.rand((n_samples,n_samples,model_parameters['in_features']), dtype=torch.float).cuda()
-    
-    # warm-up
-    model.forward_profiler(input, mask)
-    
-    with profiler.profile(with_stack=True, profile_memory=True) as prof:
-        out, idx = model.forward_profiler(input, mask)
-    
-    print(prof.key_averages(group_by_stack_n=5).
-        table(sort_by='self_cpu_time_total', row_limit=5))

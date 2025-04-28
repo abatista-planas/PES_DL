@@ -181,4 +181,4 @@ cython_debug/
 # Other folders
 scripts/plots/
 .conda
-tuning/results/
+scripts/tuning/results/
