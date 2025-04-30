@@ -42,9 +42,6 @@ def generate_discriminator_training_set(
 
     df_all = pd.concat([df_good_sample, df_bad_sample])
 
-    if scramble:
-        df_all = df_all.sample(frac=1).reset_index(drop=True)
-
     return generate_discriminator_training_set_from_df(
         df_all, batch_size, properties_list, properties_format, test_split, gpu
     )
@@ -56,13 +53,13 @@ def split_data(
     properties_format: str = "table_1D",
     test_split: float = 0.2,
     gpu: bool = True,
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, pd.DataFrame]:
     """Generates training sets for the Lennard-Jones potential"""
 
     # Shuffle DataFrame in place
-    df_all = df_all.sample(frac=1).reset_index(drop=True)
+    shuffled_df = df_all.sample(frac=1).reset_index(drop=True)
 
-    label_tensor = torch.tensor(df_all["true_pes"].values, dtype=torch.float)
+    label_tensor = torch.tensor(shuffled_df["true_pes"].values, dtype=torch.float)
     label_tensor = label_tensor[:, None]
 
     def input_format(pes):
@@ -73,7 +70,7 @@ def split_data(
             return pes[properties_list].values
 
     # Convert continuous variables to a tensor
-    input_arrays = [input_format(pes) for pes in df_all["pes"].values]
+    input_arrays = [input_format(pes) for pes in shuffled_df["pes"].values]
     input_stack = np.stack(input_arrays)
     input_tensor = torch.tensor(input_stack, dtype=torch.float)
 
@@ -98,6 +95,7 @@ def split_data(
         test_input.to("cuda" if gpu else "cpu"),
         train_labels.to("cuda" if gpu else "cpu"),
         test_labels.to("cuda" if gpu else "cpu"),
+        shuffled_df,
     )
 
 
@@ -111,7 +109,7 @@ def generate_discriminator_training_set_from_df(
 ) -> Tuple[DataLoader, DataLoader, pd.DataFrame, TensorDataset]:
     """Generates training sets for the Lennard-Jones potential"""
 
-    train_input, test_input, train_labels, test_labels = split_data(
+    train_input, test_input, train_labels, test_labels, shuffled_df = split_data(
         df_all,
         properties_list,
         properties_format,
@@ -131,7 +129,57 @@ def generate_discriminator_training_set_from_df(
     return (
         train_loader,
         test_loader,
+        shuffled_df,
+        train_data,
+    )
+
+
+def generate_generator_training_set_from_df(
+    df_all: pd.DataFrame,
+    batch_size: int = 100,
+    up_scale: int = 4,
+    properties_list: list[str] = ["energy"],
+    properties_format: str = "table_1D",
+    test_split: float = 0.2,
+    gpu: bool = True,
+):  # -> Tuple[DataLoader, DataLoader, pd.DataFrame, TensorDataset]:
+    """Generates training sets for the Lennard-Jones potential"""
+
+    train_input_hr, test_input_hr, _, _, shuffled_df = split_data(
         df_all,
+        properties_list,
+        properties_format,
+        test_split,
+        gpu=False,
+    )
+
+    train_input_hr = torch.unsqueeze(train_input_hr, dim=1)
+    test_input_hr = torch.unsqueeze(test_input_hr, dim=1)
+
+    tensor_len = train_input_hr.size(2)
+
+    indices = torch.linspace(
+        0, tensor_len - 1, int(tensor_len / up_scale), dtype=torch.long
+    )
+
+    train_input_lr = train_input_hr[:, :, indices].to("cuda" if gpu else "cpu")
+    test_input_lr = test_input_hr[:, :, indices].to("cuda" if gpu else "cpu")
+    train_input_hr = train_input_hr.to("cuda" if gpu else "cpu")
+    test_input_hr = test_input_hr.to("cuda" if gpu else "cpu")
+
+    # then convert them into PyTorch Datasets (note: already converted to tensors)
+    train_data = TensorDataset(train_input_lr, train_input_hr)
+    test_data = TensorDataset(test_input_lr, test_input_hr)
+
+    # # finally, translate into dataloader objects
+
+    train_loader = DataLoader(train_data, batch_size=batch_size, drop_last=True)
+    test_loader = DataLoader(test_data, batch_size=test_data.tensors[0].shape[0])
+
+    return (
+        train_loader,
+        test_loader,
+        shuffled_df,
         train_data,
     )
 
@@ -363,3 +411,106 @@ def generate_analytical_pes_samples(
             "deformation_parameters": [{}] * n_samples,
         }
     )
+
+
+# def generate_analytical_pes_high_low_resolution(
+#     pes_name: str = "lennard_jones",
+#     parameters_array: npt.NDArray[np.float64] = np.array([]),
+#     size: int = 128,
+#     upscale: int = 4,
+#     seed: int = 33,
+# ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+#     """Generates a set of samples from the Lennard-Jones potential
+
+#     Args:
+#         n_samples (int): number of samples to generate
+#         size (int): number of points in each sample
+#         seed (int, optional): seed for random number generator. Defaults to 33.
+
+#     Returns:
+#         pd.DataFrame: DataFrame containing the generated samples
+#     """
+
+#     np.random.seed(seed)
+#     n_samples = parameters_array.shape[0]
+#     wall_max_high = np.random.uniform(1000, 2000, n_samples)
+#     long_range_limit = np.random.uniform(0.01, 0.40, n_samples)
+#     df_samples_low_res = []
+#     df_samples_high_res = []
+
+#     for i in range(n_samples):
+#         # Get random parameters
+#         parameters = parameters_array[i]
+#         zero = getattr(PesModels, pes_name)(parameters, np.array(100))
+
+#         def pes(r):
+#             return getattr(PesModels, pes_name)(parameters, r) - zero
+
+#         r_trial = np.linspace(0.1, 50.0, 500)
+#         energy_array = pes(r_trial)
+
+#         min_index = np.argmin(energy_array)
+#         r_0 = r_trial[min_index]
+#         approx_well_depth = energy_array[min_index]
+
+#         max_high = wall_max_high[i]
+#         long_range_max = abs(long_range_limit[i] * approx_well_depth)
+
+#         # Find Proper boundary: Using bisection (requires a bracketing interval)
+#         def f_min(r):
+#             return pes(r) - max_high
+
+#         r_min = optimize.bisect(f_min, 0.001, 100)
+
+#         def f_max(r):
+#             return abs(pes(r)) - long_range_max
+
+#         r_max = optimize.bisect(f_max, r_0, 100)
+
+#         # Generate samples
+#         df_low_res = PesModels.analytical_pes(pes_name, parameters, r_min, r_max, size)
+#         df_high_res = PesModels.analytical_pes(pes_name, parameters, r_min, r_max, upscale*size)
+#         # Normalize dataframe
+#         for col in df_high_res.columns:
+#             max_min_diff = df_high_res[col].max() - df_high_res[col].min()
+#             df_high_res[col] = (
+#                 (df_high_res[col] - df_high_res[col].min()) / (max_min_diff)
+#                 if max_min_diff > 0
+#                 else df_high_res[col] - df_high_res[col].min()
+#             )
+#             df_low_res[col] = (
+#                 (df_low_res[col] - df_high_res[col].min()) / (max_min_diff)
+#                 if max_min_diff >= 0
+#                 else df_low_res[col] - df_high_res[col].min()
+#             )
+
+#         df_samples_low_res.append(df_low_res)
+#         df_samples_high_res.append(df_high_res)
+
+#     return (pd.DataFrame(
+#         {
+#             "model_type": [pes_name] * n_samples,
+#             "true_pes": [1] * n_samples,
+#             "parameters": [
+#                 {"parameters": parameters_array[i]} for i in range(n_samples)
+#             ],
+#             "pes": df_samples_low_res,
+#             "modified_pes": [0] * n_samples,
+#             "deformation_type": [""] * n_samples,
+#             "deformation_parameters": [{}] * n_samples,
+#         }
+#     ),
+#             pd.DataFrame(
+#         {
+#             "model_type": [pes_name] * n_samples,
+#             "true_pes": [1] * n_samples,
+#             "parameters": [
+#                 {"parameters": parameters_array[i]} for i in range(n_samples)
+#             ],
+#             "pes": df_samples_high_res,
+#             "modified_pes": [0] * n_samples,
+#             "deformation_type": [""] * n_samples,
+#             "deformation_parameters": [{}] * n_samples,
+#         }
+#     )
+#     )
