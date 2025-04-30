@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
@@ -13,7 +14,7 @@ from pes_1D.discriminator import AnnDiscriminator  # type: ignore
 from pes_1D.utils import get_model_failure_info  # type: ignore
 from pes_1D.visualization import sample_visualization  # type: ignore
 
-n_samples = [2000]
+n_samples = [20000]
 grid_size = 150
 batch_size = 50
 test_split = 0.8
@@ -72,6 +73,8 @@ trainAcc, losses = model.train_model(
     num_epochs,
 )
 
+plt.plot(range(2, num_epochs), losses[2:])
+plt.show()
 
 testAcc, _, _ = model.test_model(test_loader, device="cuda")
 

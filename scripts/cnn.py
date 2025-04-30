@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 import pandas as pd
 import torch
@@ -11,9 +13,8 @@ from pes_1D.data_generator import (
 )
 from pes_1D.discriminator import CnnDiscriminator  # type: ignore
 from pes_1D.utils import get_model_failure_info  # type: ignore
-from pes_1D.visualization import sample_visualization  # type: ignore
 
-n_samples = [5000]
+n_samples = [2000]
 grid_size = 150
 batch_size = 50
 test_split = 0.8
@@ -44,11 +45,12 @@ train_loader, test_loader, df_samples, _ = generate_discriminator_training_set(
     gpu=gpu,
 )
 
-sample_visualization(df_samples)
-
-
 model_parameters = {
-    "in_channels": 3,
+    "in_channels": len(properties_list),
+    "grid_size": grid_size,
+    "hidden_channels": [16, 32],
+    "kernel_size": [3, 3],
+    "pool_size": [2, 2],
 }
 
 
@@ -62,14 +64,18 @@ optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
 # Train the model
 print("Training the model...")
+time_start = time.process_time()
 trainAcc, losses = model.train_model(
     train_loader,
     criterion,
     optimizer,
     num_epochs,
 )
+time_end = time.process_time()
+print(f"Training time: {time_end - time_start:.2f} seconds")
 
-print("Accuracy Test: ", trainAcc[-1])
+
+print("Accuracy Training: ", trainAcc[-1])
 
 acc_test = model.test_model(test_loader, device="cuda")[0]
 print("Accuracy Test: ", acc_test)
@@ -98,12 +104,12 @@ df_pes_non_included = pd.concat([df_real_pes, df_random_fns], axis=0, ignore_ind
     batch_size=2000,
     properties_list=properties_list,
     test_split=0.00,
-)[0]
+)
 
 accuracy, y_pred, y_true = model.test_model(test_loader_non_included, device="cuda")
 
 
-get_model_failure_info(df_pes_non_included, y_pred, y_true)
+get_model_failure_info(df_non_included, y_pred, y_true)
 
 
 print("Accuracy Non_Included Test: ", accuracy)
