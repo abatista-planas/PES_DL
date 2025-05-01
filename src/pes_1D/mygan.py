@@ -1,4 +1,4 @@
-import multiprocessing
+import os
 
 import numpy as np
 import torch
@@ -9,6 +9,7 @@ from pes_1D.data_generator import (
     generate_analytical_pes_samples,
     generate_generator_training_set_from_df,
 )
+from pes_1D.generator import SuperResolution1D
 
 # r = np.linspace(2.5, 10, 250, dtype=np.float64)
 # r0 = np.linspace(2.59, 9.99, 1000, dtype=np.float64)
@@ -47,37 +48,6 @@ from pes_1D.data_generator import (
 # plt.show()
 
 
-class SuperRes1D(nn.Module):
-    def __init__(self, upscale_factor=4, base_channels=64):
-        super().__init__()
-        # 1) Learnable upsampling: ConvTranspose1d takes (C_in, C_out, kernel, stride, padding)
-        #    Here we go from 1→base_channels, upsampling by factor=4.
-        self.upconv = nn.ConvTranspose1d(
-            in_channels=1,
-            out_channels=base_channels,
-            kernel_size=upscale_factor,
-            stride=upscale_factor,
-            padding=0,
-            output_padding=0,
-        )
-        # 2) Refinement layers
-        self.refine = nn.Sequential(
-            nn.ReLU(inplace=True),
-            nn.Conv1d(base_channels, base_channels // 2, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv1d(base_channels // 2, 1, kernel_size=3, padding=1),
-        )
-
-    def forward(self, x):
-        """
-        x: (batch, 1, n)
-        returns: (batch, 1, 4*n)
-        """
-        x = self.upconv(x)
-        x = self.refine(x)
-        return x
-
-
 def get_performance(grid_size, up_scale):
     num_epochs = 1000
     size = grid_size
@@ -85,8 +55,11 @@ def get_performance(grid_size, up_scale):
     n_samples = 2000
     batch_size = 50
     # --- setup ---
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = SuperRes1D(upscale_factor=up_scale, base_channels=batch_size).to(device)
+    gpu = torch.cuda.is_available()
+    device = torch.device("cuda" if gpu else "cpu")
+    model = SuperResolution1D(upscale_factor=up_scale, base_channels=batch_size).to(
+        device
+    )
 
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
@@ -108,87 +81,39 @@ def get_performance(grid_size, up_scale):
         properties_list=["energy"],
         properties_format="array",
         test_split=0.5,
-        gpu=True,
+        gpu=gpu,
     )
 
-    # initialize losses
-    trainAcc = []
+    _, train_avg_loss = model.train_model(
+        train_loader,
+        criterion,
+        optimizer,
+        num_epochs,
+    )
 
-    # loop over epochs
-    for epochi in range(num_epochs):
-        # switch on training mode
-        model.train()
+    test_avg_loss, _, _ = model.test_model(
+        test_loader,
+        criterion,
+    )
 
-        # loop over training data batches
-        running_loss = 0.0
-        total_samples = 0
-
-        for X, y in train_loader:
-            # forward pass and loss
-
-            y_pred = model.forward(X)
-
-            loss = criterion(y_pred, y)
-
-            # backprop
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            running_loss += loss.item() * batch_size
-            total_samples += batch_size
-        # end of batch loop...
-
-        # now that we've trained through the batches, get their average training accuracy
-        avg_loss = running_loss / total_samples
-        trainAcc.append(avg_loss)
-
-    model.eval()
-    with torch.no_grad():  # deactivates autograd
-        for X, y in test_loader:
-            y_pred = model.forward(X)
-            loss = criterion(y_pred, y)
-
-            running_loss += loss.item() * batch_size
-            total_samples += batch_size
-
-        test_avg_loss = running_loss / total_samples
-
-    return trainAcc[-1], test_avg_loss
+    return train_avg_loss, test_avg_loss
 
 
-# n = 25
-# loss = np.zeros((2, n, n))
-
-# for i in range(4, n):
-#     for j in range(4, n):
-#         print(f"({i},{j})")
-#         loss[0, i, j], loss[1, i, j] = get_performance(i, j)
-#         print(f"Train Loss: {loss[0, i, j]}, Test Loss: {loss[1, i, j]}")
+n = 4
+loss = np.zeros((2, n, n))
 
 
-# fig, axes = plt.subplots(nrows=1, ncols=2)
-# for i, ax in enumerate(axes if isinstance(axes, np.ndarray) else [axes]):
-#     im = ax.imshow(loss[i, 4:n, 4:n], cmap="viridis")
-#     ax.set_xticklabels([""] + list(np.arange(4, n)))
-#     ax.set_yticklabels([""] + list(np.arange(4, n)))
-
-# fig.subplots_adjust(right=0.8)
-# cbar_ax = fig.add_axes((0.85, 0.15, 0.05, 0.7))
-# fig.colorbar(im, cax=cbar_ax)
-
-# plt.show()
+print("GPU available: ", torch.cuda.is_available())
+print("CPU available: ", os.cpu_count())
 
 
-# # Save the plot as a PNG image
-# plt.savefig("sample_plot.png")
+loss = np.zeros((2, n, n))
+num_processors = os.cpu_count()
 
+for i in range(2, n):
+    for j in range(2, n):
+        print(f"Grid size: {2 * i}, Upscale: {2 * j}")
+        loss[0, i, j], loss[1, i, j] = get_performance(2 * i, 2 * j)
+        print(f"Train Loss: {loss[0, i, j]}, Test Loss: {loss[1, i, j]}")
 
-def my_function(x):
-    return x * x
-
-
-if __name__ == "__main__":
-    with multiprocessing.Pool(processes=4) as pool:
-        results = pool.map(my_function, range(10))
-    print(results)
+np.save("loss.npy", loss)

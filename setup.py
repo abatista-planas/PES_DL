@@ -1,4 +1,4 @@
-from setuptools import setup   # type: ignore
+from setuptools import setup  # type: ignore
 
 requirements = [
     'importlib-metadata; python_version == "3.12"',
@@ -9,7 +9,7 @@ requirements = [
     "numpy",
     "pandas",
     "seaborn",
-    "ray[data,train,tune,serve]"
+    "ray[data,train,tune,serve]",
 ]
 
 requirements_dev = [

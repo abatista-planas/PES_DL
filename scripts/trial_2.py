@@ -1,19 +1,19 @@
-from functools import partial
 import os
 import tempfile
+from functools import partial
 from pathlib import Path
+
+import ray.cloudpickle as pickle
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.utils.data import random_split
-import torchvision  #   type: ignore
-import torchvision.transforms as transforms #   type: ignore
-from ray import tune
-from ray import train
+import torchvision  # type: ignore
+import torchvision.transforms as transforms  # type: ignore
+from ray import train, tune
 from ray.train import Checkpoint, get_checkpoint
 from ray.tune.schedulers import ASHAScheduler
-import ray.cloudpickle as pickle
+from torch.utils.data import random_split
 
 
 def load_data(data_dir="./data"):
@@ -104,7 +104,7 @@ def train_cifar(config, data_dir=None):
 
             # forward + backward + optimize
             outputs = net(inputs)
-            
+
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
@@ -155,9 +155,6 @@ def train_cifar(config, data_dir=None):
             )
 
     print("Finished Training")
-
-
-
 
 
 def test_accuracy(net, device="cpu"):
@@ -218,7 +215,9 @@ def main(num_samples=10, max_num_epochs=10, gpus_per_trial=2):
             best_trained_model = nn.DataParallel(best_trained_model)
     best_trained_model.to(device)
 
-    best_checkpoint = result.get_best_checkpoint(trial=best_trial, metric="accuracy", mode="max")
+    best_checkpoint = result.get_best_checkpoint(
+        trial=best_trial, metric="accuracy", mode="max"
+    )
     with best_checkpoint.as_directory() as checkpoint_dir:
         data_path = Path(checkpoint_dir) / "data.pkl"
         with open(data_path, "rb") as fp:
@@ -232,6 +231,3 @@ def main(num_samples=10, max_num_epochs=10, gpus_per_trial=2):
 if __name__ == "__main__":
     # You can change the number of GPUs per trial here:
     main(num_samples=2, max_num_epochs=2, gpus_per_trial=1)
-
-
-

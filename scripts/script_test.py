@@ -11,7 +11,8 @@ from pes_1D.data_generator import (
 )
 from pes_1D.discriminator import AnnDiscriminator  # type: ignore
 from pes_1D.utils import get_model_failure_info  # type: ignore
-#from pes_1D.visualization import sample_visualization  # type: ignore
+
+# from pes_1D.visualization import sample_visualization  # type: ignore
 
 
 print("Init 'generating data'")
@@ -57,7 +58,6 @@ train_loader, test_loader, df_samples, _ = generate_discriminator_training_set(
 )
 
 print("Finished 'generating data'")
-
 
 
 model_paramaters = {
@@ -126,7 +126,9 @@ df_pes_non_included = pd.concat([df_real_pes, df_random_fns], axis=0, ignore_ind
     gpu=gpu,
 )
 
-accuracy, y_pred, y_true = model.test_model(test_loader_non_included, device="cuda" if gpu else "cpu")
+accuracy, y_pred, y_true = model.test_model(
+    test_loader_non_included, device="cuda" if gpu else "cpu"
+)
 
 
 print(f"NonIncluded Accuracy :{accuracy}")
