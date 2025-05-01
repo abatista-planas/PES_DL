@@ -56,8 +56,6 @@ def sample_visualization(
         df_samples.reset_index(drop=True, inplace=True)
 
     df_plot = df_samples[df_samples.index.isin(index_array)]
-    
-    
 
     if nrow == 0 or ncol == 0:
         df_size = min(len(df_plot), 15)
@@ -111,25 +109,32 @@ def sample_visualization(
         df_plot.iloc[0].pes.plot(
             x="r",
             y="energy",
-            label = df_plot.iloc[0].model_type + df_plot.iloc[0].deformation_type,
+            label=df_plot.iloc[0].model_type + df_plot.iloc[0].deformation_type,
         )
-        plt.show()  
+        plt.show()
 
 
 def plot_hyperparameter(hyperparameter):
-    df = pd.read_pickle("accuracy_"+hyperparameter+".pkl")
-    
-    fig,ax = plt.subplots(1,figsize=(12,6))
+    df = pd.read_pickle("accuracy_" + hyperparameter + ".pkl")
+
+    fig, ax = plt.subplots(1, figsize=(12, 6))
     for column in df.drop("variation_list", axis=1).columns:
         accuracy_list = df[column].to_numpy()
         variation_list = df["variation_list"].to_numpy()
-        ax.plot(variation_list,accuracy_list,'o-',label=column,markerfacecolor='w',markersize=9)
+        ax.plot(
+            variation_list,
+            accuracy_list,
+            "o-",
+            label=column,
+            markerfacecolor="w",
+            markersize=9,
+        )
 
-    ax.set_ylabel('accuracy')
+    ax.set_ylabel("accuracy")
     ax.set_xlabel(hyperparameter)
-    ax.set_title('Accuracy vs '+ hyperparameter)
+    ax.set_title("Accuracy vs " + hyperparameter)
     if hyperparameter == "lr":
-        ax.set_xscale('log')
+        ax.set_xscale("log")
     ax.legend()
     plt.show()
-    return df,fig,ax
+    return df, fig, ax
