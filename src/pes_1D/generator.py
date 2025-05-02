@@ -210,8 +210,8 @@ class SmoothUpscale1D(Generator):
                 batch_size = x.shape[0]
                 y_hat = self.forward(x)
                 mse = criterion(y_hat, y)
-                smooth = smoothness_loss(y_hat)
-                loss = torch.sqrt(mse) + λ_smooth * smooth
+                # smooth = smoothness_loss(y_hat)
+                loss = mse  # torch.sqrt(mse) + λ_smooth * smooth
 
                 optimizer.zero_grad()
                 loss.backward()
@@ -229,6 +229,7 @@ class SmoothUpscale1D(Generator):
 
 
 class Upscale1D(Generator):
+
     def __init__(self, scale_factor=4):
         super(Upscale1D, self).__init__()
         self.scale_factor = scale_factor
@@ -250,3 +251,47 @@ class Upscale1D(Generator):
         x = self.encoder(x)
         x = self.decoder(x)
         return x
+
+    # def train_model(
+    #     self, train_loader, criterion, optimizer, num_epochs, λ_smooth=0.00001
+    #     ):
+
+    #     # 2) Smoothness penalty
+    #     def smoothness_loss(y_pred):
+    #         # penalize large second derivatives (finite‐difference)
+    #         # here we use first‐derivative penalty for simplicity
+    #         diffs = y_pred[..., 1:] - y_pred[..., :-1]
+    #         return torch.mean(diffs**2)
+
+    #     # initialize losses
+    #     trainAcc = []
+    #     loss_arr = []
+
+    #     # loop over epochs
+    #     for epochi in range(num_epochs):
+    #         # switch on training mode
+    #         self.train()
+
+    #         # loop over training data batches
+    #         total_loss = 0.0
+    #         total_samples = 0
+    #         for x, y in train_loader:
+    #             batch_size = x.shape[0]
+    #             y_hat = self.forward(x)
+    #             mse = criterion(y_hat, y)
+    #             smooth = smoothness_loss(y_hat)
+    #             loss = mse + λ_smooth * smooth
+
+    #             optimizer.zero_grad()
+    #             loss.backward()
+    #             optimizer.step()
+
+    #             total_loss += loss.item() * batch_size
+    #             total_samples += batch_size
+
+    #         # now that we've trained through the batches, get their average training accuracy
+    #         avg_loss = total_loss / total_samples
+    #         loss_arr.append(avg_loss)
+    #         trainAcc.append(avg_loss)
+
+    #     return loss_arr, trainAcc[-1]

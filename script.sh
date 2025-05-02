@@ -8,7 +8,7 @@
 #SBATCH --mem=8G              		## Memory required per node
 #SBATCH --nodes=1                       ##nodes requested
 #SBATCH --partition=gpu          		## Memory required per node
-#SBATCH --gpus-per-node=V100-SXM2-32GB:1
+#SBATCH --gpus-per-node=V100-SXM2-32GB:2
 
 ## Load the python interpreter
 module load miniconda
