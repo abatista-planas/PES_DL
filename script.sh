@@ -6,7 +6,7 @@
 #SBATCH --ntasks=4            		## Number of tasks (analyses) to run
 #SBATCH --cpus-per-task=4    		## The number of threads the code will use
 #SBATCH --mem=8G              		## Memory required per node
-#SBATCH --nodes=1                       ##nodes requested
+#SBATCH --nodes=4                       ##nodes requested
 #SBATCH --partition=gpu          		## Memory required per node
 #SBATCH --gpus-per-node=V100-SXM2-32GB:1
 

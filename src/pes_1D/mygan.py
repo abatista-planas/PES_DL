@@ -15,7 +15,7 @@ from pes_1D.data_generator import (
 )
 from pes_1D.generator import Upscale1D
 from pes_1D.utils import PesModels
-
+import threading
 # --- setup ---
 gpu = torch.cuda.is_available()
 
@@ -187,16 +187,14 @@ def check_generator(
 
 
 def get_performance(grid_size, up_scale, device):
-    num_epochs = 1000
+    num_epochs = 500
     size = grid_size
     up_scale = up_scale
-    n_samples = 5000
-    batch_size = 16
+    n_samples = 2000
+    batch_size = 25
 
     print("Performance Initialized ", device)
-    # model = SuperResolution1D(upscale_factor=up_scale, base_channels=batch_size)
-    model = Upscale1D(grid_size=grid_size, scale_factor=up_scale)
-    # model = SmoothUpscale1D(input_points=grid_size ,upscale_factor=up_scale)
+    model = Upscale1D(scale_factor=up_scale)
     model.to(device)
 
     criterion = nn.MSELoss()
@@ -241,8 +239,9 @@ def get_performance(grid_size, up_scale, device):
     return train_avg_loss, test_avg_loss, model
 
 
-n = 18
-res = np.zeros((5, n, n))
+n = 8
+res_1 = np.zeros((5, int(n/2), n))
+res_2 = np.zeros((5, int(n/2), n))
 
 print("GPU available: ", torch.cuda.is_available())
 print("CPU available: ", os.cpu_count())
@@ -252,41 +251,75 @@ print("GPU count", torch.cuda.device_count())
 # # for i in range(gpu_count):
 
 
-def gpu_work(device, initial, final):
+def gpu_work(device, initial,arr):
     count = 0
 
-    for i in range(initial, final):
+    for i in range(int(n/2)):
+        n_i = initial + i
         for j in range(2, n):
             count = count + 1
-            loss_train, loss_test, model = get_performance(2 * i, 2 * j, device)
+            loss_train, loss_test, model = get_performance(2 * n_i, 2 * j, device)
             print(
-                f"count : {count} -- {2*i},{2*j} RMSE Train Loss: {np.sqrt(loss_train)}, Test Loss: {np.sqrt(loss_test)}"
+                f"count : {count} -- {2*n_i},{2*j} RMSE Train Loss: {np.sqrt(loss_train)}, Test Loss: {np.sqrt(loss_test)}"
             )
             best, worst, mean = check_generator(
-                model, 2 * i, 2 * j, device, "lennard_jones", n_samples=1000
+                model, 2 * n_i, 2 * j, device, "lennard_jones", n_samples=1000
             )
             print(f"RMSE Best: {best}, Worst: {worst}, Mean: {mean}")
-            res[0, i, j] = np.sqrt(loss_train)
-            res[1, i, j] = np.sqrt(loss_test)
-            res[2, i, j] = best
-            res[3, i, j] = worst
-            res[4, i, j] = mean
+            if arr == 1:
+                res_1[0, n_i, j] = np.sqrt(loss_train)
+                res_1[1, n_i, j] = np.sqrt(loss_test)
+                res_1[2, n_i, j] = best
+                res_1[3, n_i, j] = worst
+                res_1[4, n_i, j] = mean
+            elif arr == 2:
+                res_2[0, n_i, j] = np.sqrt(loss_train)
+                res_2[1, n_i, j] = np.sqrt(loss_test)
+                res_2[2, n_i, j] = best
+                res_2[3, n_i, j] = worst
+                res_2[4, n_i, j] = mean    
 
 
-# # device = torch.device("cuda" if gpu else "cpu")
-# # gpu_work(device, 2, n)
+if torch.cuda.device_count()>1:
+    thread1 = threading.Thread(target = gpu_work, args=(torch.device('cuda:0'),0,1))
+    thread2 = threading.Thread(target = gpu_work, args=(torch.device('cuda:1'),int(n/2),2))
 
 
-# # thread1 = threading.Thread(target = gpu_work, args=(torch.device('cuda:0'),2 , int(n/2)))
-# # thread2 = threading.Thread(target = gpu_work, args=(torch.device('cuda:1'),int(n/2) , n))
+    thread1.start()
+    thread2.start()
 
+    thread1.join()
+    thread2.join()
 
-# # thread1.start()
-# # thread2.start()
+    res = np.zeros((5, n, n))
+    res[:,:int(n/2),:] = res_1
+    res[:,int(n/2):,:] = res_2 
+    np.save('my_array.npy', res)
 
-# # thread1.join()
-# # thread2.join()
-
+else:
+    res = np.zeros((5, n, n))
+    count = 0
+    device = torch.device("cuda" if gpu else "cpu")
+    for i in range(2,n):
+        n_i = i
+        for j in range(2, n):
+            count = count + 1
+            loss_train, loss_test, model = get_performance(2 * n_i, 2 * j, device)
+            print(
+                f"count : {count} -- {2*n_i},{2*j} RMSE Train Loss: {np.sqrt(loss_train)}, Test Loss: {np.sqrt(loss_test)}"
+            )
+            best, worst, mean = check_generator(
+                model, 2 * n_i, 2 * j, device, "lennard_jones", n_samples=1000
+            )
+            print(f"RMSE Best: {best}, Worst: {worst}, Mean: {mean}")
+            
+            res[0, n_i, j] = np.sqrt(loss_train)
+            res[1, n_i, j] = np.sqrt(loss_test)
+            res[2, n_i, j] = best
+            res[3, n_i, j] = worst
+            res[4, n_i, j] = mean
+            
+            np.save('my_array.npy', res)
 
 # # count = 0
 # # for ngpu in range(gpu_count):
@@ -306,16 +339,18 @@ def gpu_work(device, initial, final):
 
 
 # # np.save("res_2.npy", res)
-count = 1
-device = torch.device("cuda" if gpu else "cpu")
-i = 8
-j = 2
+# count = 1
+# device = torch.device("cuda" if gpu else "cpu")
+# i = 4
+# j = 10
 
-loss_train, loss_test, model = get_performance(2 * i, 2 * j, device)
-print(
-    f"count : {count} -- {2*i},{2*j} RMSE Train Loss: {np.sqrt(loss_train)}, Test Loss: {np.sqrt(loss_test)}"
-)
-best, worst, mean = check_generator(
-    model, 2 * i, 2 * j, device, "lennard_jones", n_samples=1000
-)
-print(f"RMSE Best: {best}, Worst: {worst}, Mean: {mean}")
+# loss_train, loss_test, model = get_performance(2 * i, 2 * j, device)
+# print(
+#     f"count : {count} -- {2*i},{2*j} RMSE Train Loss: {np.sqrt(loss_train)}, Test Loss: {np.sqrt(loss_test)}"
+# )
+# best, worst, mean = check_generator(
+#     model, 2 * i, 2 * j, device, "lennard_jones", n_samples=1000
+# )
+# print(f"RMSE Best: {best}, Worst: {worst}, Mean: {mean}")
+
+
