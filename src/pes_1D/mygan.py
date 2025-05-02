@@ -1,5 +1,6 @@
 import os
 
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.optimize as optimize  # type: ignore
 import torch
@@ -12,7 +13,7 @@ from pes_1D.data_generator import (
     generate_analytical_pes_samples,
     generate_generator_training_set_from_df,
 )
-from pes_1D.generator import SuperResolution1D
+from pes_1D.generator import Upscale1D
 from pes_1D.utils import PesModels
 
 # --- setup ---
@@ -20,8 +21,8 @@ gpu = torch.cuda.is_available()
 
 
 # def check_cubic_interpolation( pes_name = "lennard_jones",
-#                                 n_max = 500,
-#                                 n_samples = 100,
+#                                 n_max = 36,
+#                                 n_samples = 1000,
 #                                 ):
 
 #     arr = np.zeros((n_max,n_samples))
@@ -33,7 +34,7 @@ gpu = torch.cuda.is_available()
 #     wall_max_high = np.random.uniform(1000, 2000, n_samples)
 #     long_range_limit = np.random.uniform(0.01, 0.40, n_samples)
 
-#     for n in range(16,n_max):
+#     for n in range(4,n_max,2):
 #         for i in range(n_samples):
 #             # Get random parameters
 #             parameters = parameters_array[i]
@@ -83,37 +84,25 @@ gpu = torch.cuda.is_available()
 #     return arr
 
 
-# input = input.unsqueeze(0)
-# print(input.shape)
 # arr = check_cubic_interpolation()
 # n_max = arr.shape[0]
 
-# plt.plot(
-#     np.arange(16, n_max),
-#     np.mean(arr[16:n_max, :], axis=1),
-#     "ro--",
-#     label="mean"
+# plt.errorbar(
+#     np.arange(4, n_max, 2),
+#     np.mean(arr[np.arange(4, n_max, 2), :], axis=1),
+#     yerr=[
+#         np.min(arr[np.arange(4, n_max, 2), :], axis=1),
+#         np.max(arr[np.arange(4, n_max, 2), :], axis=1),
+#     ],
+#     fmt='ro--',
+#     label="Cubic Interpolation",
 # )
-# plt.plot(
-#     np.arange(16, n_max),
-#     np.min(arr[16:n_max, :], axis=1),
-#     "bo--",
-#     label="best"
-# )
-# plt.plot(
-#     np.arange(16, n_max),
-#     np.max(arr[16:n_max, :], axis=1),
-#     "go--",
-#     label="worst"
-# )
+
 # plt.title('RMSE of Cubic Interpolation for Lennard-Jones Potential')
 # plt.xlabel('Number of points')
 # plt.ylabel('RMSE')
 # plt.legend()
 # plt.show()
-
-# mean = np.mean(arr[16:n_max, :], axis=1)
-# print (mean[np.arange(75,225,25)])
 
 
 def check_generator(
@@ -171,14 +160,6 @@ def check_generator(
         output_r = np.linspace(r_min, r_max, n_pts * up_scale, dtype=np.float64)
         r0 = np.linspace(r_min, r_max, 1000, dtype=np.float64)
 
-        # mx = np.max(r0)
-        # mn = np.min(r0)
-
-        # # Normalize the potential
-        # r0 = (r0 - mn) / (mx - mn)
-        # input_r = (input_r - mn) / (mx - mn)
-        # output_r = (output_r - mn) / (mx - mn)
-
         v = PesModels.lennard_jones(parameters.tolist(), input_r)
         input_v = (
             torch.from_numpy(v)
@@ -200,12 +181,6 @@ def check_generator(
             y_pred = model.forward(input_v)
         output_v = y_pred[0, 0, :].detach().cpu().numpy()
 
-        # plt.plot(r0,v0,label="True")
-        # plt.plot(input_r, input_v[0,0,:].detach().cpu().numpy(), "ro",label = "True_input")
-        # plt.plot(output_r,output_v,"bx",label = "Predicted")
-        # plt.legend()
-        # plt.show()
-        # Interpolate the
         cubic = griddata(output_r, output_v, r0, method="cubic")
         arr[i] = rmse(cubic, v0)
     return np.min(arr), np.max(arr), np.mean(arr)
@@ -215,16 +190,17 @@ def get_performance(grid_size, up_scale, device):
     num_epochs = 1000
     size = grid_size
     up_scale = up_scale
-    n_samples = 2000
-    batch_size = 50
+    n_samples = 5000
+    batch_size = 16
 
     print("Performance Initialized ", device)
-    model = SuperResolution1D(upscale_factor=up_scale, base_channels=batch_size)
-
+    # model = SuperResolution1D(upscale_factor=up_scale, base_channels=batch_size)
+    model = Upscale1D(grid_size=grid_size, scale_factor=up_scale)
+    # model = SmoothUpscale1D(input_points=grid_size ,upscale_factor=up_scale)
     model.to(device)
 
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=1e-4, betas=(0.5, 0.999))
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
     # --- generate data ---
 
@@ -246,12 +222,16 @@ def get_performance(grid_size, up_scale, device):
         device=device,
     )
 
-    _, train_avg_loss = model.train_model(
+    loss_arr, train_avg_loss = model.train_model(
         train_loader,
         criterion,
         optimizer,
         num_epochs,
     )
+
+    plt.plot(loss_arr)
+    plt.title("Training Loss")
+    plt.show()
 
     test_avg_loss, _, _ = model.test_model(
         test_loader,
@@ -268,8 +248,8 @@ print("GPU available: ", torch.cuda.is_available())
 print("CPU available: ", os.cpu_count())
 print("GPU count", torch.cuda.device_count())
 
-# num gpu_count = torch.cuda.device_count()
-# for i in range(gpu_count):
+# # num gpu_count = torch.cuda.device_count()
+# # for i in range(gpu_count):
 
 
 def gpu_work(device, initial, final):
@@ -293,36 +273,49 @@ def gpu_work(device, initial, final):
             res[4, i, j] = mean
 
 
+# # device = torch.device("cuda" if gpu else "cpu")
+# # gpu_work(device, 2, n)
+
+
+# # thread1 = threading.Thread(target = gpu_work, args=(torch.device('cuda:0'),2 , int(n/2)))
+# # thread2 = threading.Thread(target = gpu_work, args=(torch.device('cuda:1'),int(n/2) , n))
+
+
+# # thread1.start()
+# # thread2.start()
+
+# # thread1.join()
+# # thread2.join()
+
+
+# # count = 0
+# # for ngpu in range(gpu_count):
+# #     device = torch.device("cuda" if gpu else "cpu")
+# #     for i in range(2,n):
+# #         for j in range(2, n):
+# #             count = count + 1
+# #             loss_train, loss_test,model = get_performance(2*i,2*j)
+# #             print(f"count : {count} -- {2*i},{2*j} RMSE Train Loss: {np.sqrt(loss_train)}, Test Loss: {np.sqrt(loss_test)}")
+# #             best,worst,mean = check_generator(model, 2*i , 2*j, "lennard_jones", n_samples=1000)
+# #             print(f"RMSE Best: {best}, Worst: {worst}, Mean: {mean}")
+# #             res[0,i,j] =  np.sqrt(loss_train)
+# #             res[1,i,j] =  np.sqrt(loss_test)
+# #             res[2,i,j] =  best
+# #             res[3,i,j] =  worst
+# #             res[4,i,j] =  mean
+
+
+# # np.save("res_2.npy", res)
+count = 1
 device = torch.device("cuda" if gpu else "cpu")
-gpu_work(device, 2, n)
+i = 8
+j = 2
 
-
-# thread1 = threading.Thread(target = gpu_work, args=(torch.device('cuda:0'),2 , int(n/2)))
-# thread2 = threading.Thread(target = gpu_work, args=(torch.device('cuda:1'),int(n/2) , n))
-
-
-# thread1.start()
-# thread2.start()
-
-# thread1.join()
-# thread2.join()
-
-
-# count = 0
-# for ngpu in range(gpu_count):
-#     device = torch.device("cuda" if gpu else "cpu")
-#     for i in range(2,n):
-#         for j in range(2, n):
-#             count = count + 1
-#             loss_train, loss_test,model = get_performance(2*i,2*j)
-#             print(f"count : {count} -- {2*i},{2*j} RMSE Train Loss: {np.sqrt(loss_train)}, Test Loss: {np.sqrt(loss_test)}")
-#             best,worst,mean = check_generator(model, 2*i , 2*j, "lennard_jones", n_samples=1000)
-#             print(f"RMSE Best: {best}, Worst: {worst}, Mean: {mean}")
-#             res[0,i,j] =  np.sqrt(loss_train)
-#             res[1,i,j] =  np.sqrt(loss_test)
-#             res[2,i,j] =  best
-#             res[3,i,j] =  worst
-#             res[4,i,j] =  mean
-
-
-np.save("res_2.npy", res)
+loss_train, loss_test, model = get_performance(2 * i, 2 * j, device)
+print(
+    f"count : {count} -- {2*i},{2*j} RMSE Train Loss: {np.sqrt(loss_train)}, Test Loss: {np.sqrt(loss_test)}"
+)
+best, worst, mean = check_generator(
+    model, 2 * i, 2 * j, device, "lennard_jones", n_samples=1000
+)
+print(f"RMSE Best: {best}, Worst: {worst}, Mean: {mean}")
