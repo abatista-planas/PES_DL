@@ -3,6 +3,7 @@ from typing import Tuple
 import torch
 import torch.autograd.profiler as profiler
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchsummary import summary  # type: ignore
 
@@ -143,4 +144,109 @@ class SuperResolution1D(Generator):
         """
         x = self.upconv(x)
         x = self.refine(x)
+        return x
+
+
+class SmoothUpscale1D(Generator):
+    def __init__(self, input_points=15, upscale_factor=4):
+        super(SmoothUpscale1D, self).__init__()
+        self.input_points = input_points
+        self.upscale_factor = upscale_factor
+        self.output_points = input_points * upscale_factor
+
+        # Convolution layers to learn residual correction
+        self.conv_layers = nn.Sequential(
+            nn.Conv1d(1, 32, kernel_size=5, padding=2),
+            nn.Tanh(),
+            nn.Conv1d(32, 32, kernel_size=3, padding=1),
+            nn.Tanh(),
+            nn.Conv1d(32, 1, kernel_size=3, padding=1),
+        )
+
+    def forward(self, x):
+        # x: [batch, 1, 15]
+        # 1) make it 4-D so bicubic is allowed
+        x2d = x.unsqueeze(-1)  # [batch, 1, 15, 1]
+
+        # 2) bicubic upsample from (15,1) → (60,1)
+        x_up2d = F.interpolate(
+            x2d, size=(self.output_points, 1), mode="bicubic", align_corners=True
+        )  # [batch, 1, 60, 1]
+
+        # 3) back to 3-D
+        x_upsampled = x_up2d.squeeze(-1)  # [batch, 1, 60]
+
+        # 4) add learned residuals
+        residual = self.conv_layers(x_upsampled)
+
+        output = x_upsampled + residual
+
+        return output
+
+    def train_model(
+        self, train_loader, criterion, optimizer, num_epochs, λ_smooth=1e-2
+    ):
+
+        # 2) Smoothness penalty
+        def smoothness_loss(y_pred):
+            # penalize large second derivatives (finite‐difference)
+            # here we use first‐derivative penalty for simplicity
+            diffs = y_pred[..., 1:] - y_pred[..., :-1]
+            return torch.mean(diffs**2)
+
+        # initialize losses
+        trainAcc = []
+        loss_arr = []
+
+        # loop over epochs
+        for epochi in range(num_epochs):
+            # switch on training mode
+            self.train()
+
+            # loop over training data batches
+            total_loss = 0.0
+            total_samples = 0
+            for x, y in train_loader:
+                batch_size = x.shape[0]
+                y_hat = self.forward(x)
+                mse = criterion(y_hat, y)
+                smooth = smoothness_loss(y_hat)
+                loss = torch.sqrt(mse) + λ_smooth * smooth
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+                total_loss += loss.item() * batch_size
+                total_samples += batch_size
+
+            # now that we've trained through the batches, get their average training accuracy
+            avg_loss = total_loss / total_samples
+            loss_arr.append(avg_loss)
+            trainAcc.append(avg_loss)
+
+        return loss_arr, trainAcc[-1]
+
+
+class Upscale1D(Generator):
+    def __init__(self, scale_factor=4):
+        super(Upscale1D, self).__init__()
+        self.scale_factor = scale_factor
+
+        self.encoder = nn.Sequential(
+            nn.Conv1d(1, 16, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv1d(16, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+        )
+
+        self.decoder = nn.Sequential(
+            nn.ConvTranspose1d(32, 16, kernel_size=scale_factor, stride=scale_factor),
+            nn.ReLU(),
+            nn.Conv1d(16, 1, kernel_size=3, padding=1),
+        )
+
+    def forward(self, x):
+        x = self.encoder(x)
+        x = self.decoder(x)
         return x
