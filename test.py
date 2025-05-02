@@ -20,4 +20,4 @@ cbar_ax = fig.add_axes((0.85, 0.15, 0.05, 0.7))
 fig.colorbar(im, cax=cbar_ax)
 
 plt.show()
-plt.savefig("grid_size_vs_upscaling.png")
+# plt.savefig("grid_size_vs_upscaling.png")

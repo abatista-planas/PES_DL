@@ -363,7 +363,7 @@ def generate_analytical_pes_samples(
         def pes(r):
             return getattr(PesModels, pes_name)(parameters, r) - zero
 
-        r_trial = np.linspace(0.1, 50.0, 500)
+        r_trial = np.linspace(0.1, 50.0, 5000)
         energy_array = pes(r_trial)
 
         min_index = np.argmin(energy_array)
@@ -411,106 +411,3 @@ def generate_analytical_pes_samples(
             "deformation_parameters": [{}] * n_samples,
         }
     )
-
-
-# def generate_analytical_pes_high_low_resolution(
-#     pes_name: str = "lennard_jones",
-#     parameters_array: npt.NDArray[np.float64] = np.array([]),
-#     size: int = 128,
-#     upscale: int = 4,
-#     seed: int = 33,
-# ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-#     """Generates a set of samples from the Lennard-Jones potential
-
-#     Args:
-#         n_samples (int): number of samples to generate
-#         size (int): number of points in each sample
-#         seed (int, optional): seed for random number generator. Defaults to 33.
-
-#     Returns:
-#         pd.DataFrame: DataFrame containing the generated samples
-#     """
-
-#     np.random.seed(seed)
-#     n_samples = parameters_array.shape[0]
-#     wall_max_high = np.random.uniform(1000, 2000, n_samples)
-#     long_range_limit = np.random.uniform(0.01, 0.40, n_samples)
-#     df_samples_low_res = []
-#     df_samples_high_res = []
-
-#     for i in range(n_samples):
-#         # Get random parameters
-#         parameters = parameters_array[i]
-#         zero = getattr(PesModels, pes_name)(parameters, np.array(100))
-
-#         def pes(r):
-#             return getattr(PesModels, pes_name)(parameters, r) - zero
-
-#         r_trial = np.linspace(0.1, 50.0, 500)
-#         energy_array = pes(r_trial)
-
-#         min_index = np.argmin(energy_array)
-#         r_0 = r_trial[min_index]
-#         approx_well_depth = energy_array[min_index]
-
-#         max_high = wall_max_high[i]
-#         long_range_max = abs(long_range_limit[i] * approx_well_depth)
-
-#         # Find Proper boundary: Using bisection (requires a bracketing interval)
-#         def f_min(r):
-#             return pes(r) - max_high
-
-#         r_min = optimize.bisect(f_min, 0.001, 100)
-
-#         def f_max(r):
-#             return abs(pes(r)) - long_range_max
-
-#         r_max = optimize.bisect(f_max, r_0, 100)
-
-#         # Generate samples
-#         df_low_res = PesModels.analytical_pes(pes_name, parameters, r_min, r_max, size)
-#         df_high_res = PesModels.analytical_pes(pes_name, parameters, r_min, r_max, upscale*size)
-#         # Normalize dataframe
-#         for col in df_high_res.columns:
-#             max_min_diff = df_high_res[col].max() - df_high_res[col].min()
-#             df_high_res[col] = (
-#                 (df_high_res[col] - df_high_res[col].min()) / (max_min_diff)
-#                 if max_min_diff > 0
-#                 else df_high_res[col] - df_high_res[col].min()
-#             )
-#             df_low_res[col] = (
-#                 (df_low_res[col] - df_high_res[col].min()) / (max_min_diff)
-#                 if max_min_diff >= 0
-#                 else df_low_res[col] - df_high_res[col].min()
-#             )
-
-#         df_samples_low_res.append(df_low_res)
-#         df_samples_high_res.append(df_high_res)
-
-#     return (pd.DataFrame(
-#         {
-#             "model_type": [pes_name] * n_samples,
-#             "true_pes": [1] * n_samples,
-#             "parameters": [
-#                 {"parameters": parameters_array[i]} for i in range(n_samples)
-#             ],
-#             "pes": df_samples_low_res,
-#             "modified_pes": [0] * n_samples,
-#             "deformation_type": [""] * n_samples,
-#             "deformation_parameters": [{}] * n_samples,
-#         }
-#     ),
-#             pd.DataFrame(
-#         {
-#             "model_type": [pes_name] * n_samples,
-#             "true_pes": [1] * n_samples,
-#             "parameters": [
-#                 {"parameters": parameters_array[i]} for i in range(n_samples)
-#             ],
-#             "pes": df_samples_high_res,
-#             "modified_pes": [0] * n_samples,
-#             "deformation_type": [""] * n_samples,
-#             "deformation_parameters": [{}] * n_samples,
-#         }
-#     )
-#     )
