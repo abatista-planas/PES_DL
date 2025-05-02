@@ -4,7 +4,7 @@ from typing import Tuple
 
 import numpy as np
 import numpy.typing as npt
-import pandas as pd
+import pandas as pd  # type: ignore
 import scipy.optimize as optimize  # type: ignore
 import torch
 from sklearn.model_selection import train_test_split  # type: ignore
@@ -141,7 +141,7 @@ def generate_generator_training_set_from_df(
     properties_list: list[str] = ["energy"],
     properties_format: str = "table_1D",
     test_split: float = 0.2,
-    gpu: bool = True,
+    device="cpu",
 ):  # -> Tuple[DataLoader, DataLoader, pd.DataFrame, TensorDataset]:
     """Generates training sets for the Lennard-Jones potential"""
 
@@ -162,10 +162,10 @@ def generate_generator_training_set_from_df(
         0, tensor_len - 1, int(tensor_len / up_scale), dtype=torch.long
     )
 
-    train_input_lr = train_input_hr[:, :, indices].to("cuda" if gpu else "cpu")
-    test_input_lr = test_input_hr[:, :, indices].to("cuda" if gpu else "cpu")
-    train_input_hr = train_input_hr.to("cuda" if gpu else "cpu")
-    test_input_hr = test_input_hr.to("cuda" if gpu else "cpu")
+    train_input_lr = train_input_hr[:, :, indices].to(device)
+    test_input_lr = test_input_hr[:, :, indices].to(device)
+    train_input_hr = train_input_hr.to(device)
+    test_input_hr = test_input_hr.to(device)
 
     # then convert them into PyTorch Datasets (note: already converted to tensors)
     train_data = TensorDataset(train_input_lr, train_input_hr)
@@ -273,7 +273,11 @@ def generate_bad_samples(
 
 
 def generate_true_pes_samples(
-    pes_name_list: list[str], n_samples: list[int], size: int, seed: int = 33
+    pes_name_list: list[str],
+    n_samples: list[int],
+    size: int,
+    seed: int = 33,
+    device="cpu",
 ) -> pd.DataFrame:
     """Generates a set of samples"""
 
@@ -301,14 +305,18 @@ def generate_true_pes_samples(
             parameters_array[:, 1] = np.random.uniform(
                 5, 100000, n_samples[i]
             )  # epsilon
-            df = generate_analytical_pes_samples(pes_name, parameters_array, size, seed)
+            df = generate_analytical_pes_samples(
+                pes_name, parameters_array, size, device=device, seed=seed
+            )
 
         elif pes_name == "morse":
             parameters_array = np.zeros((n_samples[i], 3))
             parameters_array[:, 0] = np.random.uniform(5, 100000, n_samples[i])  # D_e
             parameters_array[:, 1] = np.random.uniform(2.5, 10, n_samples[i])  # alpha
             parameters_array[:, 2] = np.random.uniform(1.2, 10.0, n_samples[i])  # r_0
-            df = generate_analytical_pes_samples(pes_name, parameters_array, size, seed)
+            df = generate_analytical_pes_samples(
+                pes_name, parameters_array, size, device=device, seed=seed
+            )
 
         elif pes_name == "reudenberg":
             number_of_samples = min(n_samples[i], len(PesModels.reudenberg_parameters))
@@ -324,7 +332,9 @@ def generate_true_pes_samples(
             for i, key in enumerate(reudenberg_keys):
                 parameters_array[i, :] = PesModels.reudenberg_parameters[key]
 
-            df = generate_analytical_pes_samples(pes_name, parameters_array, size, seed)
+            df = generate_analytical_pes_samples(
+                pes_name, parameters_array, size, device=device, seed=seed
+            )
             df["model_type"] = ["reudenberg_" + key for key in reudenberg_keys]
 
         df_pes = pd.concat([df_pes, df], axis=0, ignore_index=True)
@@ -336,6 +346,7 @@ def generate_analytical_pes_samples(
     pes_name: str = "lennard_jones",
     parameters_array: npt.NDArray[np.float64] = np.array([]),
     size: int = 128,
+    device="cpu",
     seed: int = 33,
 ) -> pd.DataFrame:
     """Generates a set of samples from the Lennard-Jones potential
