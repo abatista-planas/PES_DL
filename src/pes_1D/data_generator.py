@@ -1,5 +1,7 @@
 """Generates sythetic data and noised data for the Lennard-Jones model"""
 
+from functools import partial
+from multiprocessing import Pool, cpu_count
 from typing import Tuple
 
 import numpy as np
@@ -277,7 +279,6 @@ def generate_true_pes_samples(
     n_samples: list[int],
     size: int,
     seed: int = 33,
-    device="cpu",
 ) -> pd.DataFrame:
     """Generates a set of samples"""
 
@@ -303,10 +304,10 @@ def generate_true_pes_samples(
             parameters_array = np.zeros((n_samples[i], 2))
             parameters_array[:, 0] = np.random.uniform(1.2, 10.0, n_samples[i])  # sigma
             parameters_array[:, 1] = np.random.uniform(
-                5, 100000, n_samples[i]
+                5, 50000, n_samples[i]
             )  # epsilon
             df = generate_analytical_pes_samples(
-                pes_name, parameters_array, size, device=device, seed=seed
+                pes_name, parameters_array, size, seed=seed
             )
 
         elif pes_name == "morse":
@@ -315,7 +316,7 @@ def generate_true_pes_samples(
             parameters_array[:, 1] = np.random.uniform(2.5, 10, n_samples[i])  # alpha
             parameters_array[:, 2] = np.random.uniform(1.2, 10.0, n_samples[i])  # r_0
             df = generate_analytical_pes_samples(
-                pes_name, parameters_array, size, device=device, seed=seed
+                pes_name, parameters_array, size, seed=seed
             )
 
         elif pes_name == "reudenberg":
@@ -333,7 +334,7 @@ def generate_true_pes_samples(
                 parameters_array[i, :] = PesModels.reudenberg_parameters[key]
 
             df = generate_analytical_pes_samples(
-                pes_name, parameters_array, size, device=device, seed=seed
+                pes_name, parameters_array, size, seed=seed
             )
             df["model_type"] = ["reudenberg_" + key for key in reudenberg_keys]
 
@@ -342,11 +343,55 @@ def generate_true_pes_samples(
     return df_pes
 
 
+def generate_pes(pes_name, size, parameters):
+
+    # Get random parameters
+    zero = getattr(PesModels, pes_name)(parameters, np.array(100))
+
+    def pes(r):
+        return getattr(PesModels, pes_name)(parameters, r) - zero
+
+    r_trial = np.linspace(0.1, 50.0, 500)
+    energy_array = pes(r_trial)
+
+    min_index = np.argmin(energy_array)
+    r_0 = r_trial[min_index]
+    approx_well_depth = energy_array[min_index]
+
+    max_high = np.max(
+        np.random.uniform(1000.0, 2000.0) * np.random.uniform(1.0, 3.0) * parameters[1]
+    )
+    long_range_max = abs(np.random.uniform(0.01, 0.40) * approx_well_depth)
+
+    # Find Proper boundary: Using bisection (requires a bracketing interval)
+    def f_min(r):
+        return pes(r) - max_high
+
+    r_min = optimize.bisect(f_min, 0.001, 100.00)
+
+    def f_max(r):
+        return abs(pes(r)) - long_range_max
+
+    r_max = optimize.bisect(f_max, r_0, 100.00)
+
+    # Generate samples
+    df = PesModels.analytical_pes(pes_name, parameters, r_min, r_max, size)
+
+    # Normalize dataframe
+    for col in df.columns:
+        max_min_diff = df[col].max() - df[col].min()
+        df[col] = (
+            (df[col] - df[col].min()) / (max_min_diff)
+            if max_min_diff > 0
+            else df[col] - df[col].min()
+        )
+    return df
+
+
 def generate_analytical_pes_samples(
     pes_name: str = "lennard_jones",
     parameters_array: npt.NDArray[np.float64] = np.array([]),
     size: int = 128,
-    device="cpu",
     seed: int = 33,
 ) -> pd.DataFrame:
     """Generates a set of samples from the Lennard-Jones potential
@@ -362,53 +407,13 @@ def generate_analytical_pes_samples(
 
     np.random.seed(seed)
     n_samples = parameters_array.shape[0]
-    wall_max_high = np.random.uniform(1000, 2000, n_samples)
-    long_range_limit = np.random.uniform(0.01, 0.40, n_samples)
-    df_samples = []
 
-    for i in range(n_samples):
-        # Get random parameters
-        parameters = parameters_array[i]
-        zero = getattr(PesModels, pes_name)(parameters, np.array(100))
+    task = partial(generate_pes, pes_name, size)
 
-        def pes(r):
-            return getattr(PesModels, pes_name)(parameters, r) - zero
+    with Pool(processes=cpu_count() - 1) as p:
+        df_samples = p.map(task, parameters_array)
 
-        r_trial = np.linspace(0.1, 50.0, 5000)
-        energy_array = pes(r_trial)
-
-        min_index = np.argmin(energy_array)
-        r_0 = r_trial[min_index]
-        approx_well_depth = energy_array[min_index]
-
-        max_high = wall_max_high[i]
-        long_range_max = abs(long_range_limit[i] * approx_well_depth)
-
-        # Find Proper boundary: Using bisection (requires a bracketing interval)
-        def f_min(r):
-            return pes(r) - max_high
-
-        r_min = optimize.bisect(f_min, 0.001, 100)
-
-        def f_max(r):
-            return abs(pes(r)) - long_range_max
-
-        r_max = optimize.bisect(f_max, r_0, 100)
-
-        # Generate samples
-        df = PesModels.analytical_pes(pes_name, parameters, r_min, r_max, size)
-
-        # Normalize dataframe
-        for col in df.columns:
-            max_min_diff = df[col].max() - df[col].min()
-            df[col] = (
-                (df[col] - df[col].min()) / (max_min_diff)
-                if max_min_diff > 0
-                else df[col] - df[col].min()
-            )
-
-        df_samples.append(df)
-
+    print("len: ", len(df_samples))
     return pd.DataFrame(
         {
             "model_type": [pes_name] * n_samples,
