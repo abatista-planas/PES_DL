@@ -245,6 +245,8 @@ class Upscale1D(Generator):
             nn.ConvTranspose1d(32, 16, kernel_size=scale_factor, stride=scale_factor),
             nn.ReLU(),
             nn.Conv1d(16, 1, kernel_size=3, padding=1),
+            # nn.ReLU(inplace=True),
+            # nn.Linear()
         )
 
     def forward(self, x):
