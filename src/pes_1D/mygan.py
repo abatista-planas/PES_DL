@@ -1,5 +1,6 @@
 import os
 
+import matplotlib.pyplot as plt  # type: ignore
 import numpy as np
 import scipy.optimize as optimize  # type: ignore
 import torch
@@ -12,7 +13,7 @@ from pes_1D.data_generator import (
     generate_analytical_pes_samples,
     generate_generator_training_set_from_df,
 )
-from pes_1D.generator import Upscale1D
+from pes_1D.generator import ResNetUpscaler
 from pes_1D.utils import PesModels
 
 # --- setup ---
@@ -191,11 +192,14 @@ def get_performance(grid_size, up_scale, device):
     num_epochs = 500
     size = grid_size
     up_scale = up_scale
-    n_samples = 20000
+    n_samples = 2000
     batch_size = 25
 
     print("Performance Initialized ", device)
-    model = Upscale1D(scale_factor=up_scale)
+    # model = Upscale1D(scale_factor=up_scale)
+    model = ResNetUpscaler(
+        upscale_factor=up_scale, input_size=grid_size, num_channels=16, num_blocks=1
+    )
     model.to(device)
 
     criterion = nn.MSELoss()
@@ -228,9 +232,9 @@ def get_performance(grid_size, up_scale, device):
         num_epochs,
     )
 
-    # plt.plot(loss_arr[10:])
-    # plt.title("Training Loss")
-    # plt.show()
+    plt.plot(loss_arr[10:])
+    plt.title("Training Loss")
+    plt.show()
 
     test_avg_loss, _, _ = model.test_model(
         test_loader,

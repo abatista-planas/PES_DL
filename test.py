@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import numpy as np
 
 # print(loss.shape)
@@ -76,58 +75,67 @@ import numpy as np
 
 # plt.show()
 
-n_max = 36
-arr = np.load("cubic_rmse.npy")
+# n_max = 36
+# arr = np.load("cubic_rmse.npy")
 
-gen = np.load("generator_rmse.npy")
+# gen = np.load("generator_rmse.npy")
 
-print(gen.shape)
+# print(gen.shape)
 
-plt.errorbar(
-    np.arange(4, 16, 2),
-    gen[4, 2:, 2],
-    # yerr=[
-    #     np.min(arr[np.arange(8, n_max, 2), :], axis=1),
-    #     np.max(arr[np.arange(8, n_max, 2), :], axis=1),
-    # ],
-    fmt="o--",
-    label="x4 Upscaling",
-)
-plt.errorbar(
-    np.arange(4, 16, 2),
-    gen[4, 2:, 3],
-    # yerr=[
-    #     np.min(arr[np.arange(8, n_max, 2), :], axis=1),
-    #     np.max(arr[np.arange(8, n_max, 2), :], axis=1),
-    # ],
-    fmt="o--",
-    label="x6 Upscaling",
-)
+# plt.errorbar(
+#     np.arange(4, 16, 2),
+#     gen[4, 2:, 2],
+#     # yerr=[
+#     #     np.min(arr[np.arange(8, n_max, 2), :], axis=1),
+#     #     np.max(arr[np.arange(8, n_max, 2), :], axis=1),
+#     # ],
+#     fmt="o--",
+#     label="x4 Upscaling",
+# )
+# plt.errorbar(
+#     np.arange(4, 16, 2),
+#     gen[4, 2:, 3],
+#     # yerr=[
+#     #     np.min(arr[np.arange(8, n_max, 2), :], axis=1),
+#     #     np.max(arr[np.arange(8, n_max, 2), :], axis=1),
+#     # ],
+#     fmt="o--",
+#     label="x6 Upscaling",
+# )
 
-plt.errorbar(
-    np.arange(4, 16, 2),
-    gen[4, 2:, 7],
-    # yerr=[
-    #     np.min(arr[np.arange(8, n_max, 2), :], axis=1),
-    #     np.max(arr[np.arange(8, n_max, 2), :], axis=1),
-    # ],
-    fmt="o--",
-    label="x14 Upscaling",
-)
-plt.errorbar(
-    np.arange(4, n_max, 2),
-    np.mean(arr[np.arange(4, n_max, 2), :], axis=1),
-    # yerr=[
-    #     np.min(arr[np.arange(8, n_max, 2), :], axis=1),
-    #     np.max(arr[np.arange(8, n_max, 2), :], axis=1),
-    # ],
-    fmt="ro--",
-    label="Cubic Interpolation",
-)
+# plt.errorbar(
+#     np.arange(4, 16, 2),
+#     gen[4, 2:, 7],
+#     # yerr=[
+#     #     np.min(arr[np.arange(8, n_max, 2), :], axis=1),
+#     #     np.max(arr[np.arange(8, n_max, 2), :], axis=1),
+#     # ],
+#     fmt="o--",
+#     label="x14 Upscaling",
+# )
+# plt.errorbar(
+#     np.arange(4, n_max, 2),
+#     np.mean(arr[np.arange(4, n_max, 2), :], axis=1),
+#     # yerr=[
+#     #     np.min(arr[np.arange(8, n_max, 2), :], axis=1),
+#     #     np.max(arr[np.arange(8, n_max, 2), :], axis=1),
+#     # ],
+#     fmt="ro--",
+#     label="Cubic Interpolation",
+# )
 
 
-plt.title("RMSE of Cubic Interpolation for Lennard-Jones Potential")
-plt.xlabel("Number of points")
-plt.ylabel("RMSE")
-plt.legend()
-plt.show()
+# plt.title("RMSE of Cubic Interpolation for Lennard-Jones Potential")
+# plt.xlabel("Number of points")
+# plt.ylabel("RMSE")
+# plt.legend()
+# plt.show()
+
+
+integers = [1, 2, 3, 4, 5]
+probabilities = [0.1, 0.2, 0.3, 0.2, 0.2]
+
+# Generate a random list of 10 integers
+random_integers = np.random.choice(integers, size=10, p=probabilities, replace=True)
+
+print(random_integers)

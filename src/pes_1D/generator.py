@@ -254,46 +254,45 @@ class Upscale1D(Generator):
         x = self.decoder(x)
         return x
 
-    # def train_model(
-    #     self, train_loader, criterion, optimizer, num_epochs, λ_smooth=0.00001
-    #     ):
 
-    #     # 2) Smoothness penalty
-    #     def smoothness_loss(y_pred):
-    #         # penalize large second derivatives (finite‐difference)
-    #         # here we use first‐derivative penalty for simplicity
-    #         diffs = y_pred[..., 1:] - y_pred[..., :-1]
-    #         return torch.mean(diffs**2)
+class ResidualBlock(nn.Module):
+    def __init__(self, channels):
+        super(ResidualBlock, self).__init__()
+        self.block = nn.Sequential(
+            nn.Conv1d(channels, channels, kernel_size=3, padding=1),
+            nn.BatchNorm1d(channels),
+            nn.ReLU(),
+            nn.Conv1d(channels, channels, kernel_size=3, padding=1),
+            nn.BatchNorm1d(channels),
+        )
 
-    #     # initialize losses
-    #     trainAcc = []
-    #     loss_arr = []
+    def forward(self, x):
+        return x + self.block(x)
 
-    #     # loop over epochs
-    #     for epochi in range(num_epochs):
-    #         # switch on training mode
-    #         self.train()
 
-    #         # loop over training data batches
-    #         total_loss = 0.0
-    #         total_samples = 0
-    #         for x, y in train_loader:
-    #             batch_size = x.shape[0]
-    #             y_hat = self.forward(x)
-    #             mse = criterion(y_hat, y)
-    #             smooth = smoothness_loss(y_hat)
-    #             loss = mse + λ_smooth * smooth
+class ResNetUpscaler(Generator):
+    def __init__(self, upscale_factor, input_size=150, num_channels=16, num_blocks=1):
+        super(ResNetUpscaler, self).__init__()
+        self.input_layer = nn.Conv1d(1, num_channels, kernel_size=3, padding=1)
 
-    #             optimizer.zero_grad()
-    #             loss.backward()
-    #             optimizer.step()
+        self.res_blocks = nn.Sequential(
+            *[ResidualBlock(num_channels) for _ in range(num_blocks)]
+        )
 
-    #             total_loss += loss.item() * batch_size
-    #             total_samples += batch_size
+        self.upscale = nn.Sequential(
+            nn.ConvTranspose1d(
+                num_channels,
+                num_channels,
+                kernel_size=upscale_factor,
+                stride=upscale_factor,
+            ),
+            nn.ReLU(),
+            nn.Conv1d(num_channels, 1, kernel_size=3, padding=1),
+        )
 
-    #         # now that we've trained through the batches, get their average training accuracy
-    #         avg_loss = total_loss / total_samples
-    #         loss_arr.append(avg_loss)
-    #         trainAcc.append(avg_loss)
+    def forward(self, x):
 
-    #     return loss_arr, trainAcc[-1]
+        x = self.input_layer(x)
+        x = self.res_blocks(x)
+        x = self.upscale(x)
+        return x
