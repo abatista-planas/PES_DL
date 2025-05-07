@@ -1,5 +1,5 @@
 import os
-
+import threading
 import numpy as np
 import scipy.optimize as optimize  # type: ignore
 import torch
@@ -191,7 +191,7 @@ def get_performance(grid_size, up_scale, device):
     num_epochs = 500
     size = grid_size
     up_scale = up_scale
-    n_samples = 20000
+    n_samples = 10000
     batch_size = 25
 
     print("Performance Initialized ", device)
@@ -282,22 +282,36 @@ def gpu_work(device, gs_arr, scl_arr, arr):
 
 
 if torch.cuda.device_count() > 1:
-    print("hello")
-    # thread1 = threading.Thread(target=gpu_work, args=(torch.device("cuda:0"), 0, 1))
-    # thread2 = threading.Thread(
-    #     target=gpu_work, args=(torch.device("cuda:1"), int(n / 2), 2)
-    # )
+    
+        
+    ni = len(grid_size_arr)
+    gs_arr_1 = grid_size_arr[:int(ni/2)]
+    gs_arr_2 = grid_size_arr[int(ni/2):]
+    ni_1 = len(gs_arr_1)
+    ni_2 = len(gs_arr_2)
+    nj = len(scaling_arr)
 
-    # thread1.start()
-    # thread2.start()
+    res = np.zeros((8, ni, nj))
+    res_1 = np.zeros((8,ni_1 , nj))
+    res_2 = np.zeros((8, ni_2, nj))
+    
+    thread1 = threading.Thread(
+        target=gpu_work, args=(torch.device("cuda:0"), gs_arr_1, scaling_arr, res_1)
+    )
+    thread2 = threading.Thread(
+        target=gpu_work, args=(torch.device("cuda:1"), gs_arr_2, scaling_arr, res_2)
+    )
 
-    # thread1.join()
-    # thread2.join()
+    thread1.start()
+    thread2.start()
 
-    # res = np.zeros((5, n, n))
-    # res[:, : int(n / 2), :] = res_1
-    # res[:, int(n / 2) :, :] = res_2
-    # np.save("my_array.npy", res)
+    thread1.join()
+    thread2.join()
+
+    
+    res[:, : ni_1, :] = res_1
+    res[:, ni_1 :, :] = res_2
+    np.save("res.npy", res)
 
 else:
     print("hello")
@@ -309,4 +323,4 @@ else:
 
     gpu_work(device, grid_size_arr, scaling_arr, res)
 
-    np.save("my_array.npy", res)
+    np.save("res.npy", res)

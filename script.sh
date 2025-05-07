@@ -3,8 +3,8 @@
 #SBATCH --job-name=PES_DL   		## Name of the job
 #SBATCH --output=PES_DL_Output.out  	## Output file
 #SBATCH --time=24:00:00           		## Job Duration
-#SBATCH --ntasks=4            		## Number of tasks (analyses) to run
-#SBATCH --cpus-per-task=4    		## The number of threads the code will use
+#SBATCH --ntasks=8            		## Number of tasks (analyses) to run
+#SBATCH --cpus-per-task=8    		## The number of threads the code will use
 #SBATCH --mem=8G              		## Memory required per node
 #SBATCH --nodes=4                       ##nodes requested
 #SBATCH --partition=gpu          		## Memory required per node
