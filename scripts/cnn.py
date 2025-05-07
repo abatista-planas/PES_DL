@@ -1,5 +1,4 @@
-import time
-
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
@@ -13,10 +12,11 @@ from pes_1D.data_generator import (
 )
 from pes_1D.discriminator import CnnDiscriminator  # type: ignore
 from pes_1D.utils import get_model_failure_info  # type: ignore
+from pes_1D.visualization import sample_visualization  # type: ignore
 
-n_samples = [5000]
-grid_size = 250
-batch_size = 25
+n_samples = [2000]
+grid_size = 150
+batch_size = 50
 test_split = 0.5
 pes_name_list = ["lennard_jones"]
 deformation_list = np.array(
@@ -58,6 +58,9 @@ train_loader, test_loader, df_samples, _ = generate_discriminator_training_set(
     device=device,
 )
 
+sample_visualization(df_samples)
+
+
 model_parameters = {
     "in_channels": len(properties_list),
     "grid_size": grid_size,
@@ -70,29 +73,31 @@ model_parameters = {
 model = CnnDiscriminator(model_parameters).cuda()
 model.summary()
 
-num_epochs = 2000
+# global parameter
+num_epochs = 300
 criterion = nn.BCEWithLogitsLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
-
 # Train the model
 print("Training the model...")
-time_start = time.process_time()
 trainAcc, losses = model.train_model(
     train_loader,
     criterion,
     optimizer,
     num_epochs,
 )
-time_end = time.process_time()
-print(f"Training time: {time_end - time_start:.2f} seconds")
+
+plt.plot(range(2, num_epochs), losses[2:])
+plt.show()
+
+test_results = model.test_model(test_loader)
+testAcc = test_results[0]  # Extract the first tensor as test accuracy
+
+print(f"Training Accuracy:{trainAcc[-1]}")
+print(f"Test Accuracy:{testAcc}")
 
 
-print("Accuracy Training: ", trainAcc[-1])
-
-acc_test = model.test_model(test_loader, device="cuda")[0]
-print("Accuracy Test: ", acc_test)
-
+# Data not included in the training set
 
 # All trues
 df_real_pes = generate_true_pes_samples(["reudenberg", "morse"], [1, 999], grid_size)
@@ -105,26 +110,26 @@ df_random_fns = generate_bad_samples(
     size=grid_size,
 )
 
+
 df_pes_non_included = pd.concat([df_real_pes, df_random_fns], axis=0, ignore_index=True)
 
 (
     test_loader_non_included,
-    _,
-    df_non_included,
+    tensor_dataset_non_included,
+    df_pes_non_included,
     _,
 ) = generate_discriminator_training_set_from_df(
     df_pes_non_included,
-    batch_size=2000,
+    batch_size=len(df_pes_non_included),
     properties_list=properties_list,
+    properties_format=properties_format,
     test_split=0.00,
+    device=device,
 )
 
-accuracy, y_pred, y_true = model.test_model(test_loader_non_included, device="cuda")
+accuracy, y_pred, y_true = model.test_model(test_loader_non_included)
 
 
-get_model_failure_info(df_non_included, y_pred, y_true)
+print(f"NonIncluded Accuracy :{accuracy}")
 
-
-print("Accuracy Non_Included Test: ", accuracy)
-
-print("CNN Number of parameters: ", model.count_parameters())
+get_model_failure_info(df_pes_non_included, y_pred, y_true)

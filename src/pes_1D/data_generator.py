@@ -162,16 +162,24 @@ def generate_generator_training_set_from_df(
     train_input_hr = torch.unsqueeze(train_input_hr, dim=1)
     test_input_hr = torch.unsqueeze(test_input_hr, dim=1)
 
-    tensor_len = train_input_hr.size(2)
+    tensor_len = train_input_hr.size(-1)
 
     indices = torch.linspace(
         0, tensor_len - 1, int(tensor_len / up_scale), dtype=torch.long
     )
 
-    train_input_lr = train_input_hr[:, :, indices].to(device)
-    test_input_lr = test_input_hr[:, :, indices].to(device)
-    train_input_hr = train_input_hr.to(device)
-    test_input_hr = test_input_hr.to(device)
+    if properties_format == "array":
+
+        train_input_lr = train_input_hr[:, :, indices].to(device)
+        test_input_lr = test_input_hr[:, :, indices].to(device)
+        train_input_hr = train_input_hr.to(device)
+        test_input_hr = test_input_hr.to(device)
+
+    if properties_format == "table_1D":
+        train_input_lr = train_input_hr[:, :, :, indices].to(device)
+        test_input_lr = test_input_hr[:, :, :, indices].to(device)
+        train_input_hr = train_input_hr.to(device)
+        test_input_hr = test_input_hr.to(device)
 
     # then convert them into PyTorch Datasets (note: already converted to tensors)
     train_data = TensorDataset(train_input_lr, train_input_hr)
@@ -182,12 +190,7 @@ def generate_generator_training_set_from_df(
     train_loader = DataLoader(train_data, batch_size=batch_size, drop_last=True)
     test_loader = DataLoader(test_data, batch_size=test_data.tensors[0].shape[0])
 
-    return (
-        train_loader,
-        test_loader,
-        shuffled_df,
-        train_data,
-    )
+    return (train_loader, test_loader, shuffled_df, train_input_lr, train_input_hr)
 
 
 def generate_bad_samples(
@@ -419,7 +422,6 @@ def generate_pes(pes_name, size, parameters):
     for col in df.columns:
         if col == "r":
             continue
-            # df[col] = Normalizers.min_max_normalize(df[col])
         else:
             df[col] = Normalizers.normalize(df[col])
 
