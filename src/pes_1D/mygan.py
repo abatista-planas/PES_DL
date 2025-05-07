@@ -119,8 +119,8 @@ def get_performance(grid_size, up_scale, device):
     return train_avg_loss, test_avg_loss, model
 
 
-grid_size_arr = [4, 5, 6, 8, 10, 12, 14, 16, 20, 24, 28, 32]
-scaling_arr = [4, 5, 6, 8, 10, 12, 16, 20, 24, 28, 32, 36]
+grid_size_arr = [4]  # , 5, 6, 8, 10, 12, 14, 16, 20, 24, 28, 32]
+scaling_arr = [4]  # , 5, 6, 8, 10, 12, 16, 20, 24, 28, 32, 36]
 
 
 print("GPU available: ", torch.cuda.is_available())
@@ -154,7 +154,22 @@ def gpu_work(device, gs_arr, scl_arr, arr):
                 device=device,
             )
             print(f"RMSE Mean Model: {mean_model}, Spline: {mean_spline}")
-
+            (
+                _,
+                _,
+                mean_model_O2,
+                _,
+                _,
+                mean_spline_O2,
+            ) = check_generator_v3(
+                model,
+                ["reudenberg"],
+                n_samples=[1],
+                grid_size=gz,
+                up_scale=scl,
+                device=device,
+            )
+            print(f"RMSE for O2 Mean Model: {mean_model_O2}, Spline: {mean_spline_O2}")
             arr[0, i, j] = np.sqrt(loss_train)
             arr[1, i, j] = np.sqrt(loss_test)
             arr[2, i, j] = best_model
@@ -163,6 +178,8 @@ def gpu_work(device, gs_arr, scl_arr, arr):
             arr[5, i, j] = best_spline
             arr[6, i, j] = worst_spline
             arr[7, i, j] = mean_spline
+            arr[8, i, j] = mean_model_O2
+            arr[9, i, j] = mean_spline_O2
 
 
 if torch.cuda.device_count() > 1:
@@ -174,9 +191,9 @@ if torch.cuda.device_count() > 1:
     ni_2 = len(gs_arr_2)
     nj = len(scaling_arr)
 
-    res = np.zeros((8, ni, nj))
-    res_1 = np.zeros((8, ni_1, nj))
-    res_2 = np.zeros((8, ni_2, nj))
+    res = np.zeros((10, ni, nj))
+    res_1 = np.zeros((10, ni_1, nj))
+    res_2 = np.zeros((10, ni_2, nj))
 
     thread1 = threading.Thread(
         target=gpu_work, args=(torch.device("cuda:0"), gs_arr_1, scaling_arr, res_1)
@@ -193,16 +210,16 @@ if torch.cuda.device_count() > 1:
 
     res[:, :ni_1, :] = res_1
     res[:, ni_1:, :] = res_2
-    np.save("res.npy", res)
+    np.save("gen_vs_spline.npy", res)
 
 else:
 
     ni = len(grid_size_arr)
     nj = len(scaling_arr)
 
-    res = np.zeros((8, ni, nj))
+    res = np.zeros((10, ni, nj))
     device = torch.device("cuda" if gpu else "cpu")
 
     gpu_work(device, grid_size_arr, scaling_arr, res)
 
-    np.save("res.npy", res)
+    np.save("gen_vs_spline.npy", res)
