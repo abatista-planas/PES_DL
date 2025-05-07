@@ -271,7 +271,7 @@ class ResidualBlock(nn.Module):
 
 
 class ResNetUpscaler(Generator):
-    def __init__(self, upscale_factor, input_size=150, num_channels=16, num_blocks=1):
+    def __init__(self, upscale_factor, num_channels=32, num_blocks=1):
         super(ResNetUpscaler, self).__init__()
         self.input_layer = nn.Conv1d(1, num_channels, kernel_size=3, padding=1)
 

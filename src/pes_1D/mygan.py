@@ -12,7 +12,7 @@ from pes_1D.data_generator import (
     generate_generator_training_set_from_df,
     generate_true_pes_samples,
 )
-from pes_1D.generator import Upscale1D
+from pes_1D.generator import ResNetUpscaler
 
 # --- setup ---
 gpu = torch.cuda.is_available()
@@ -44,18 +44,20 @@ def check_generator_v3(model, pes_name_list, n_samples, grid_size, up_scale, dev
         device=device,
     )
 
+    indices = torch.tensor([i for i in range(size) if i % up_scale != 0])
+
     for i in range(total_samples):
         r_input = input_lr[i, 0, 0, :].to("cpu").numpy()
         v_input = input_lr[i, 0, 1, :].to("cpu").numpy()
-        r_output = input_hr[i, 0, 0, :].to("cpu").numpy()
-        v_output = input_hr[i, 0, 1, :].to("cpu").numpy()
+        r_output = input_hr[i, 0, 0, indices].to("cpu").numpy()
+        v_output = input_hr[i, 0, 1, indices].to("cpu").numpy()
 
         input_model = input_lr[i, 0, 1, :].unsqueeze(0).unsqueeze(0)
 
         with torch.no_grad():
             y_pred = model.forward(input_model)
 
-        v_model = y_pred[0, 0, :].detach().cpu().numpy()
+        v_model = y_pred[0, 0, indices].detach().cpu().numpy()
         cubic_output = griddata(r_input, v_input, r_output, method="cubic")
 
         arr[i, 0] = rmse(v_output, v_model)
@@ -72,19 +74,20 @@ def check_generator_v3(model, pes_name_list, n_samples, grid_size, up_scale, dev
 
 
 def get_performance(grid_size, up_scale, device):
-    num_epochs = 1000
-    batch_size = 25
+    num_epochs = 500
+    batch_size = 50
     pes_name_list = ["lennard_jones", "morse"]
-    n_samples = [2000, 2000]
+    n_samples = [5000, 5000]
     size = grid_size * up_scale
     test_split = 0.5
 
     print("Performance Initialized ", device)
-    model = Upscale1D(scale_factor=up_scale)
+    # model = Upscale1D(scale_factor=up_scale)
+    model = ResNetUpscaler(upscale_factor=up_scale, num_channels=32, num_blocks=2)
     model.to(device)
 
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=1e-4)
+    optimizer = optim.Adam(model.parameters(), lr=2 * 1e-4)
 
     # --- generate data ---
     df_high_res = generate_true_pes_samples(
@@ -120,7 +123,7 @@ def get_performance(grid_size, up_scale, device):
 
 
 grid_size_arr = [4]  # , 5, 6, 8, 10, 12, 14, 16, 20, 24, 28, 32]
-scaling_arr = [4]  # , 5, 6, 8, 10, 12, 16, 20, 24, 28, 32, 36]
+scaling_arr = [20]  # , 5, 6, 8, 10, 12, 16, 20, 24, 28, 32, 36]
 
 
 print("GPU available: ", torch.cuda.is_available())
