@@ -48,13 +48,11 @@ class Discriminator(nn.Module):
     def test_model(
         self,
         test_loader: DataLoader,
-        device: str = "cpu",
     ) -> Tuple[float, torch.Tensor, torch.Tensor]:
         """Evaluates the model on the test set and returns the loss and accuracy."""
 
         self.eval()
-        X, y = next(iter(test_loader))  # extract X,y from test dataloader
-        X, y = X.to(device), y.to(device)
+        X, y = next(iter(test_loader))
         with torch.no_grad():  # deactivates autograd
             y_eval = self.forward(X)
 
@@ -191,7 +189,6 @@ class CnnDiscriminator(Discriminator):
                 (sz - self.params["kernel_size"][i] + 1) / self.params["pool_size"][i]
             )
 
-        print("Output size after conv layers: ", sz)
         self.layers["fc_0"] = nn.Linear(sz * self.params["hidden_channels"][-1], 128)
         self.layers["output"] = nn.Linear(128, 1)
 

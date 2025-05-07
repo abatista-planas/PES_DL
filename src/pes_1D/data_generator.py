@@ -12,6 +12,7 @@ import torch
 from sklearn.model_selection import train_test_split  # type: ignore
 from torch.utils.data import DataLoader, TensorDataset
 
+from pes_1D.utils import Normalizers  # type: ignore
 from pes_1D.utils import NoiseFunctions, PesModels
 
 
@@ -22,10 +23,10 @@ def generate_discriminator_training_set(
     pes_name_list: list[str] = ["lennard_jones"],
     properties_list: list[str] = ["energy"],
     deformation_list: npt.NDArray[np.str_] = np.array(["outliers", "oscillation"]),
+    probability_deformation: npt.NDArray[np.float64] = np.array([0.5, 0.5]),
     properties_format: str = "table_1D",
     test_split: float = 0.2,
-    gpu: bool = True,
-    scramble=True,
+    device="cpu",
     generator_seed: list[int] = [37, 43],
 ) -> Tuple[DataLoader, DataLoader, pd.DataFrame, TensorDataset]:
     """Generates training sets for the Lennard-Jones potential"""
@@ -39,13 +40,14 @@ def generate_discriminator_training_set(
         n_samples,
         grid_size,
         deformation_list,
+        probability_deformation,
         seed=generator_seed[1],
     )
 
     df_all = pd.concat([df_good_sample, df_bad_sample])
 
     return generate_discriminator_training_set_from_df(
-        df_all, batch_size, properties_list, properties_format, test_split, gpu
+        df_all, batch_size, properties_list, properties_format, test_split, device
     )
 
 
@@ -54,7 +56,6 @@ def split_data(
     properties_list: list[str] = ["energy"],
     properties_format: str = "table_1D",
     test_split: float = 0.2,
-    gpu: bool = True,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, pd.DataFrame]:
     """Generates training sets for the Lennard-Jones potential"""
 
@@ -93,10 +94,10 @@ def split_data(
         )
 
     return (
-        train_input.to("cuda" if gpu else "cpu"),
-        test_input.to("cuda" if gpu else "cpu"),
-        train_labels.to("cuda" if gpu else "cpu"),
-        test_labels.to("cuda" if gpu else "cpu"),
+        train_input,
+        test_input,
+        train_labels,
+        test_labels,
         shuffled_df,
     )
 
@@ -107,7 +108,7 @@ def generate_discriminator_training_set_from_df(
     properties_list: list[str] = ["energy"],
     properties_format: str = "table_1D",
     test_split: float = 0.2,
-    gpu: bool = True,
+    device="cpu",
 ) -> Tuple[DataLoader, DataLoader, pd.DataFrame, TensorDataset]:
     """Generates training sets for the Lennard-Jones potential"""
 
@@ -116,8 +117,12 @@ def generate_discriminator_training_set_from_df(
         properties_list,
         properties_format,
         test_split,
-        gpu,
     )
+
+    train_input = train_input.to(device)
+    train_labels = train_labels.to(device)
+    test_input = test_input.to(device)
+    test_labels = test_labels.to(device)
 
     # then convert them into PyTorch Datasets (note: already converted to tensors)
     train_data = TensorDataset(train_input, train_labels)
@@ -152,7 +157,6 @@ def generate_generator_training_set_from_df(
         properties_list,
         properties_format,
         test_split,
-        gpu=False,
     )
 
     train_input_hr = torch.unsqueeze(train_input_hr, dim=1)
@@ -191,21 +195,27 @@ def generate_bad_samples(
     n_samples: list[int],
     size: int,
     deformation_list: npt.NDArray[np.str_] = np.array(["outliers", "oscillation"]),
+    probability_deformation: npt.NDArray[np.float64] = np.array([0.5, 0.5]),
     seed: int = 33,
 ) -> pd.DataFrame:
     np.random.seed(seed)
 
     """Generates a set of good samples from the Lennard-Jones potential with noise"""
     df_bad_sample = generate_true_pes_samples(pes_name_list, n_samples, size, seed)
-
+    pb = probability_deformation[: deformation_list.size]
+    pb = pb / np.sum(pb)
     # Randomly select deformation types for each sample
     deformed_list = deformation_list[
-        np.random.randint(0, deformation_list.size, size=n_samples)
+        # np.random.randint(0, deformation_list.size, size=n_samples)
+        # Generate a random list of 10 integers
+        np.random.choice(
+            np.arange(deformation_list.size), size=n_samples, p=pb, replace=True
+        )
     ].tolist()
 
     # Apply the deformation functions
     def assign_deformation_type(row):
-        row.model_type = "twisted_pes"
+        row.model_type = "pes*_"
         row.true_pes = 0
         row.modified_pes = 1
         row.deformation_type = deformed_list[row.name]
@@ -217,21 +227,19 @@ def generate_bad_samples(
             row.pes["energy"] += outliers_function
             row.pes["derivative"] += outliers_derivative
 
+            row.pes["inverse_derivative"] = 1.0 / (row.pes["derivative"] + 1e-10)
+
         elif deformed_list[row.name] == "oscillation":
-            r0 = np.random.uniform(0.1, 1.5)
-            A = np.random.uniform(1, 3)
-            lmbda = np.random.uniform(-2, 2)
-            omega = np.random.uniform(-1, 1)
-            phi = np.random.uniform(0.0, 2 * np.pi)
+            r0 = np.random.uniform(3.0, 8.0)
+            A = np.random.uniform(0.25, 0.5)
+            n = int(np.random.uniform(1, 25))
 
             row.deformation_parameters["r0"] = r0
             row.deformation_parameters["A"] = A
-            row.deformation_parameters["lmbda"] = lmbda
-            row.deformation_parameters["omega"] = omega
-            row.deformation_parameters["phi"] = phi
+            row.deformation_parameters["n"] = n
 
             oscillation_function, oscillation_derivative = NoiseFunctions.oscillation(
-                row.pes["r"], r0, A, lmbda, omega, phi
+                row.pes["r"], r0, A, n
             )
             row.pes["energy"] = row.pes["energy"] * (1 + oscillation_function)
             row.pes["derivative"] = (
@@ -240,32 +248,59 @@ def generate_bad_samples(
             )
             row.pes["inverse_derivative"] = 1.0 / (row.pes["derivative"] + 1e-10)
 
-            for col in row.pes.columns:
-                max_min_diff = row.pes[col].max() - row.pes[col].min()
-                row.pes[col] = (
-                    (row.pes[col] - row.pes[col].min()) / (max_min_diff)
-                    if max_min_diff > 0
-                    else row.pes[col] - row.pes[col].min()
-                )
+        elif deformed_list[row.name] == "pulse_random_fn":
+
+            mu = np.random.uniform(-3, 3)
+            sigma = np.random.uniform(0.2, 2)
+
+            row.deformation_parameters["mu"] = mu
+            row.deformation_parameters["sigma"] = sigma
+
+            pulse_function, pulse_derivative, fn_label = NoiseFunctions.pulse_random_fn(
+                row.pes["r"], mu, sigma
+            )
+            row.model_type = fn_label + "_"
+            row.deformation_parameters["random_fn"] = fn_label
+            row.pes["energy"] = row.pes["energy"] * (1 + pulse_function)
+            row.pes["derivative"] = (
+                row.pes["derivative"] * (1 + pulse_function)
+                + row.pes["energy"] * pulse_derivative
+            )
+            row.pes["inverse_derivative"] = 1.0 / (row.pes["derivative"] + 1e-10)
+
+        elif deformed_list[row.name] == "piecewise_random":
+
+            r0 = np.random.uniform(3.0, 10.0)
+
+            row.deformation_parameters["r0"] = r0
+
+            pw_function, pw_derivative, fn_label = NoiseFunctions.piecewise_random(
+                row.pes["r"], r0
+            )
+            row.model_type = fn_label[0] + " - " + fn_label[1] + "_"
+            row.deformation_parameters["random_fn"] = fn_label[0] + " - " + fn_label[1]
+            row.pes["energy"] = pw_function
+            row.pes["derivative"] = pw_derivative
+            row.pes["inverse_derivative"] = 1.0 / (pw_derivative + 1e-10)
+
         elif deformed_list[row.name] == "random_functions":
             # Generate random function
-            r = np.linspace(0.1, 10, size, dtype=np.float64)
-            fn_label, fn, dfn = NoiseFunctions.random_function(r)
+            # r = np.linspace(1, 10,len(row.pes["r"]), dtype=np.float64)
+            fn, dfn, fn_label, _ = NoiseFunctions.random_function(row.pes["r"])
 
-            row.model_type = fn_label
-            row.pes["r"] = r
+            row.model_type = fn_label + "_"
+            # row.pes["r"] = r
             row.pes["energy"] = fn
             row.pes["derivative"] = dfn
             row.pes["inverse_derivative"] = 1.0 / (dfn + 1e-10)
 
-            # Normalize dataframe
-            for col in row.pes.columns:
-                max_min_diff = row.pes[col].max() - row.pes[col].min()
-                row.pes[col] = (
-                    (row.pes[col] - row.pes[col].min()) / (max_min_diff)
-                    if max_min_diff > 0
-                    else row.pes[col] - row.pes[col].min()
-                )
+        # Normalize dataframe
+        for col in row.pes.columns:
+            if col == "r":
+                continue
+                # row.pes[col] = Normalizers.min_max_normalize(row.pes[col])
+            else:
+                row.pes[col] = Normalizers.normalize(row.pes[col])
 
         return row
 
@@ -359,7 +394,10 @@ def generate_pes(pes_name, size, parameters):
     approx_well_depth = energy_array[min_index]
 
     max_high = np.max(
-        np.random.uniform(1000.0, 2000.0) * np.random.uniform(1.0, 3.0) * parameters[1]
+        [
+            np.random.uniform(1000.0, 2000.0),
+            np.random.uniform(1.0, 3.0) * np.abs(approx_well_depth),
+        ]
     )
     long_range_max = abs(np.random.uniform(0.01, 0.40) * approx_well_depth)
 
@@ -379,12 +417,12 @@ def generate_pes(pes_name, size, parameters):
 
     # Normalize dataframe
     for col in df.columns:
-        max_min_diff = df[col].max() - df[col].min()
-        df[col] = (
-            (df[col] - df[col].min()) / (max_min_diff)
-            if max_min_diff > 0
-            else df[col] - df[col].min()
-        )
+        if col == "r":
+            continue
+            # df[col] = Normalizers.min_max_normalize(df[col])
+        else:
+            df[col] = Normalizers.normalize(df[col])
+
     return df
 
 
@@ -410,10 +448,13 @@ def generate_analytical_pes_samples(
 
     task = partial(generate_pes, pes_name, size)
 
-    with Pool(processes=cpu_count() - 1) as p:
-        df_samples = p.map(task, parameters_array)
+    if n_samples > 1:
+        with Pool(processes=cpu_count()) as p:
+            df_samples = p.map(task, parameters_array)
+    else:
 
-    print("len: ", len(df_samples))
+        df_samples = [generate_pes(pes_name, size, parameters_array[0])]
+
     return pd.DataFrame(
         {
             "model_type": [pes_name] * n_samples,

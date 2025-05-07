@@ -3,7 +3,7 @@ import time
 import numpy as np
 import pandas as pd
 import torch
-from torch import nn
+import torch.nn as nn
 
 from pes_1D.data_generator import generate_discriminator_training_set  # type: ignore
 from pes_1D.data_generator import (
@@ -14,14 +14,25 @@ from pes_1D.data_generator import (
 from pes_1D.discriminator import CnnDiscriminator  # type: ignore
 from pes_1D.utils import get_model_failure_info  # type: ignore
 
-n_samples = [2000]
-grid_size = 150
-batch_size = 50
-test_split = 0.8
+n_samples = [5000]
+grid_size = 250
+batch_size = 25
+test_split = 0.5
 pes_name_list = ["lennard_jones"]
 deformation_list = np.array(
-    ["outliers", "oscillation"]
+    [
+        "outliers",
+        "oscillation",
+        "pulse_random_fn",
+        "piecewise_random",
+        "random_functions",
+    ]
 )  # Types of deformation to generate
+
+probability_deformation = np.array(
+    [0.25, 0.35, 0.3, 0.05, 0.05]
+)  # Probability of deformation to generate
+
 properties_list = [
     "energy",
     "derivative",
@@ -31,7 +42,8 @@ properties_list = [
 properties_format = (
     "table_1D"  # Format [concatenated array or table] of properties to use for training
 )
-gpu = True
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 train_loader, test_loader, df_samples, _ = generate_discriminator_training_set(
     n_samples=n_samples,
@@ -40,9 +52,10 @@ train_loader, test_loader, df_samples, _ = generate_discriminator_training_set(
     pes_name_list=pes_name_list,
     properties_list=properties_list,
     deformation_list=deformation_list,
+    probability_deformation=probability_deformation,
     properties_format=properties_format,
     test_split=test_split,
-    gpu=gpu,
+    device=device,
 )
 
 model_parameters = {
