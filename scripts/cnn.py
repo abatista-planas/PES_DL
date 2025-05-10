@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
@@ -14,10 +13,10 @@ from pes_1D.discriminator import CnnDiscriminator  # type: ignore
 from pes_1D.utils import get_model_failure_info  # type: ignore
 from pes_1D.visualization import sample_visualization  # type: ignore
 
-n_samples = [2000]
+n_samples = [10000]
 grid_size = 150
 batch_size = 50
-test_split = 0.5
+test_split = 0.9
 pes_name_list = ["lennard_jones"]
 deformation_list = np.array(
     [
@@ -87,8 +86,8 @@ trainAcc, losses = model.train_model(
     num_epochs,
 )
 
-plt.plot(range(2, num_epochs), losses[2:])
-plt.show()
+# plt.plot(range(2, num_epochs), losses[2:])
+# plt.show()
 
 test_results = model.test_model(test_loader)
 testAcc = test_results[0]  # Extract the first tensor as test accuracy
@@ -106,7 +105,8 @@ df_real_pes = generate_true_pes_samples(["reudenberg", "morse"], [1, 999], grid_
 df_random_fns = generate_bad_samples(
     pes_name_list=["morse"],
     n_samples=[1000],
-    deformation_list=np.array(["outliers", "oscillation"]),
+    deformation_list=np.array(["outliers", "oscillation", "pulse_random_fn"]),
+    probability_deformation=[0.3, 0.3, 0.4],
     size=grid_size,
 )
 
@@ -133,3 +133,12 @@ accuracy, y_pred, y_true = model.test_model(test_loader_non_included)
 print(f"NonIncluded Accuracy :{accuracy}")
 
 get_model_failure_info(df_pes_non_included, y_pred, y_true)
+
+if (accuracy + testAcc) / 2 > 99.0:
+    print("Saving model ...")
+    # Save the model
+    torch.save(
+        model,
+        "/home/albplanas/Desktop/Programming/PES_DL/PES_DL/saved_models/"
+        + "CNN_Discriminator.pth",
+    )

@@ -10,6 +10,10 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchsummary import summary  # type: ignore
 
+from pes_1D.data_generator import (
+    generate_discriminator_training_set,
+)
+
 
 class Discriminator(nn.Module):
     def __init__(self):
@@ -117,6 +121,71 @@ class Discriminator(nn.Module):
 
         return trainAcc, losses
 
+    def pre_train(self):
+        """Pre-trains the model on the training set and returns the pre-trained model and losses."""
+        n_samples = [5000]
+        grid_size = self.params["grid_size"]
+        batch_size = 50
+        test_split = 0.5
+        pes_name_list = ["lennard_jones"]  # PES names to generate
+        deformation_list = np.array(
+            [
+                "outliers",
+                "oscillation",
+                "pulse_random_fn",
+                "piecewise_random",
+                "random_functions",
+            ]
+        )  # Types of deformation to generate
+
+        probability_deformation = np.array(
+            [0.25, 0.35, 0.3, 0.05, 0.05]
+        )  # Probability of deformation to generate
+
+        properties_list = [
+            "energy",
+            "derivative",
+            "inverse_derivative",
+        ]  # List of properties to use for training
+
+        properties_format = "table_1D"  # Format [concatenated array or table] of properties to use for training
+
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        self = self.to(device)
+        criterion = nn.BCEWithLogitsLoss()
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
+
+        train_loader, test_loader, _, _ = generate_discriminator_training_set(
+            n_samples=n_samples,
+            batch_size=batch_size,
+            grid_size=grid_size,
+            pes_name_list=pes_name_list,
+            properties_list=properties_list,
+            deformation_list=deformation_list,
+            probability_deformation=probability_deformation,
+            properties_format=properties_format,
+            test_split=test_split,
+            device=device,
+        )
+
+        # global parameter
+        num_epochs = 300
+
+        # Train the model
+        print("Pre-Training the Discriminator...")
+        trainAcc, _ = self.train_model(
+            train_loader,
+            criterion,
+            optimizer,
+            num_epochs,
+        )
+
+        test_results = self.test_model(test_loader)
+        testAcc = test_results[0]  # Extract the first tensor as test accuracy
+
+        print(f"Training Accuracy:{trainAcc[-1]}")
+        print(f"Test Accuracy:{testAcc}")
+
 
 class AnnDiscriminator(Discriminator):
     def __init__(self, model_paramaters):
@@ -158,6 +227,60 @@ class AnnDiscriminator(Discriminator):
 
 
 class CnnDiscriminator(Discriminator):
+    def __init__(self, model_paramaters):
+        """_summary_
+
+        Args:
+            model_paramaters (_type_): "in_features"
+
+        """
+        super(CnnDiscriminator, self).__init__()
+        self.params = model_paramaters
+        sz = self.params["grid_size"]
+        self.layers["cv_0"] = nn.Conv1d(
+            self.params["in_channels"],
+            self.params["hidden_channels"][0],
+            kernel_size=self.params["kernel_size"][0],
+            stride=1,
+            padding=0,
+        )
+
+        self.layers["cv_1"] = nn.Conv1d(
+            self.params["hidden_channels"][0],
+            self.params["hidden_channels"][1],
+            kernel_size=self.params["kernel_size"][1],
+            stride=1,
+            padding=0,
+        )
+
+        for i in range(len(self.params["pool_size"])):
+            sz = floor(
+                (sz - self.params["kernel_size"][i] + 1) / self.params["pool_size"][i]
+            )
+
+        self.layers["fc_0"] = nn.Linear(sz * self.params["hidden_channels"][-1], 128)
+        self.layers["output"] = nn.Linear(128, 1)
+
+    def forward(self, x):
+        x = F.relu(self.layers["cv_0"](x))
+        x = F.avg_pool1d(x, kernel_size=self.params["pool_size"][0])
+        x = F.relu(self.layers["cv_1"](x))
+        x = F.avg_pool1d(x, kernel_size=self.params["pool_size"][1])
+
+        x = torch.flatten(x, start_dim=1)
+        x = F.relu(self.layers["fc_0"](x))
+        # output layer
+        x = self.layers["output"](x)
+        return x
+
+    def summary(self):
+        print("CnnDiscriminator")
+        return self.generic_summary(
+            "CnnDiscriminator", (self.params["in_channels"], self.params["grid_size"])
+        )
+
+
+class SRDiscriminator(Discriminator):
     def __init__(self, model_paramaters):
         """_summary_
 

@@ -1,4 +1,5 @@
 import os
+import sys
 import threading
 
 import numpy as np
@@ -74,8 +75,8 @@ def check_generator_v3(model, pes_name_list, n_samples, grid_size, up_scale, dev
 
 
 def get_performance(grid_size, up_scale, device):
-    num_epochs = 500
-    batch_size = 50
+    num_epochs = 1000
+    batch_size = 25
     pes_name_list = ["lennard_jones", "morse"]
     n_samples = [5000, 5000]
     size = grid_size * up_scale
@@ -83,7 +84,7 @@ def get_performance(grid_size, up_scale, device):
 
     print("Performance Initialized ", device)
     # model = Upscale1D(scale_factor=up_scale)
-    model = ResNetUpscaler(upscale_factor=up_scale, num_channels=32, num_blocks=2)
+    model = ResNetUpscaler(upscale_factor=up_scale, num_channels=16, num_blocks=2)
     model.to(device)
 
     criterion = nn.MSELoss()
@@ -119,16 +120,16 @@ def get_performance(grid_size, up_scale, device):
         criterion,
     )
 
+    if (train_avg_loss + test_avg_loss) / 2 < 0.01:
+        print("Saving model ...")
+        # Save the model
+        torch.save(
+            model,
+            "/home/albplanas/Desktop/Programming/PES_DL/PES_DL/saved_models/"
+            + "CNN_Generator.pth",
+        )
+
     return train_avg_loss, test_avg_loss, model
-
-
-grid_size_arr = [4]  # , 5, 6, 8, 10, 12, 14, 16, 20, 24, 28, 32]
-scaling_arr = [20]  # , 5, 6, 8, 10, 12, 16, 20, 24, 28, 32, 36]
-
-
-print("GPU available: ", torch.cuda.is_available())
-print("CPU available: ", os.cpu_count())
-print("GPU count", torch.cuda.device_count())
 
 
 def gpu_work(device, gs_arr, scl_arr, arr):
@@ -185,44 +186,60 @@ def gpu_work(device, gs_arr, scl_arr, arr):
             arr[9, i, j] = mean_spline_O2
 
 
-if torch.cuda.device_count() > 1:
+def main(grid_size_arr: list[int], filename: str):
+    print("Grid size: ", grid_size_arr)
+    scaling_arr = [30]  # [4, 5, 6, 8, 10, 12, 16, 20, 24, 28, 32, 36]
 
-    ni = len(grid_size_arr)
-    gs_arr_1 = grid_size_arr[: int(ni / 2)]
-    gs_arr_2 = grid_size_arr[int(ni / 2) :]
-    ni_1 = len(gs_arr_1)
-    ni_2 = len(gs_arr_2)
-    nj = len(scaling_arr)
-
-    res = np.zeros((10, ni, nj))
-    res_1 = np.zeros((10, ni_1, nj))
-    res_2 = np.zeros((10, ni_2, nj))
-
-    thread1 = threading.Thread(
-        target=gpu_work, args=(torch.device("cuda:0"), gs_arr_1, scaling_arr, res_1)
-    )
-    thread2 = threading.Thread(
-        target=gpu_work, args=(torch.device("cuda:1"), gs_arr_2, scaling_arr, res_2)
-    )
-
-    thread1.start()
-    thread2.start()
-
-    thread1.join()
-    thread2.join()
-
-    res[:, :ni_1, :] = res_1
-    res[:, ni_1:, :] = res_2
-    np.save("gen_vs_spline.npy", res)
-
-else:
+    print("GPU available: ", torch.cuda.is_available())
+    print("CPU available: ", os.cpu_count())
+    print("GPU count", torch.cuda.device_count())
 
     ni = len(grid_size_arr)
     nj = len(scaling_arr)
 
     res = np.zeros((10, ni, nj))
-    device = torch.device("cuda" if gpu else "cpu")
 
-    gpu_work(device, grid_size_arr, scaling_arr, res)
+    if torch.cuda.device_count() > 1:
 
-    np.save("gen_vs_spline.npy", res)
+        gs_arr_1 = grid_size_arr[: int(ni / 2)]
+        gs_arr_2 = grid_size_arr[int(ni / 2) :]
+        ni_1 = len(gs_arr_1)
+        ni_2 = len(gs_arr_2)
+
+        res_1 = np.zeros((10, ni_1, nj))
+        res_2 = np.zeros((10, ni_2, nj))
+
+        thread1 = threading.Thread(
+            target=gpu_work, args=(torch.device("cuda:0"), gs_arr_1, scaling_arr, res_1)
+        )
+        thread2 = threading.Thread(
+            target=gpu_work, args=(torch.device("cuda:1"), gs_arr_2, scaling_arr, res_2)
+        )
+
+        thread1.start()
+        thread2.start()
+
+        thread1.join()
+        thread2.join()
+
+        res[:, :ni_1, :] = res_1
+        res[:, ni_1:, :] = res_2
+
+    else:
+        device = torch.device("cuda" if gpu else "cpu")
+        gpu_work(device, grid_size_arr, scaling_arr, res)
+
+    np.save(filename, res)
+
+
+if __name__ == "__main__":
+
+    n = len(sys.argv)
+    if n < 3:
+        print("Usage: python mygan.py <grid_size> <filename>")
+        sys.exit(1)
+
+    main(
+        grid_size_arr=list(map(int, sys.argv[1][1:-1].split(","))),
+        filename="gen_vs_spline" + str(sys.argv[2]) + ".npy",
+    )
