@@ -76,19 +76,19 @@ def check_generator_v3(model, pes_name_list, n_samples, grid_size, up_scale, dev
 
 def get_performance(grid_size, up_scale, device):
     num_epochs = 1000
-    batch_size = 25
+    batch_size = 50
     pes_name_list = ["lennard_jones", "morse"]
-    n_samples = [5000, 5000]
+    n_samples = [10000, 10000]
     size = grid_size * up_scale
     test_split = 0.5
 
     print("Performance Initialized ", device)
     # model = Upscale1D(scale_factor=up_scale)
-    model = ResNetUpscaler(upscale_factor=up_scale, num_channels=16, num_blocks=2)
+    model = ResNetUpscaler(upscale_factor=up_scale, num_channels=8, num_blocks=2)
     model.to(device)
 
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=2 * 1e-4)
+    optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
     # --- generate data ---
     df_high_res = generate_true_pes_samples(
@@ -132,63 +132,9 @@ def get_performance(grid_size, up_scale, device):
     return train_avg_loss, test_avg_loss, model
 
 
-def gpu_work(device, gs_arr, scl_arr, arr):
-
-    count = 0
-    for i, gz in enumerate(gs_arr):
-        for j, scl in enumerate(scl_arr):
-            count = count + 1
-            loss_train, loss_test, model = get_performance(gz, scl, device)
-            print(
-                f"count : {count}-- {device} -- {gz},{scl} RMSE Train Loss: {np.sqrt(loss_train)}, Test Loss: {np.sqrt(loss_test)}"
-            )
-            (
-                best_model,
-                worst_model,
-                mean_model,
-                best_spline,
-                worst_spline,
-                mean_spline,
-            ) = check_generator_v3(
-                model,
-                ["lennard_jones", "morse"],
-                n_samples=[5000, 5000],
-                grid_size=gz,
-                up_scale=scl,
-                device=device,
-            )
-            print(f"RMSE Mean Model: {mean_model}, Spline: {mean_spline}")
-            (
-                _,
-                _,
-                mean_model_O2,
-                _,
-                _,
-                mean_spline_O2,
-            ) = check_generator_v3(
-                model,
-                ["reudenberg"],
-                n_samples=[1],
-                grid_size=gz,
-                up_scale=scl,
-                device=device,
-            )
-            print(f"RMSE for O2 Mean Model: {mean_model_O2}, Spline: {mean_spline_O2}")
-            arr[0, i, j] = np.sqrt(loss_train)
-            arr[1, i, j] = np.sqrt(loss_test)
-            arr[2, i, j] = best_model
-            arr[3, i, j] = worst_model
-            arr[4, i, j] = mean_model
-            arr[5, i, j] = best_spline
-            arr[6, i, j] = worst_spline
-            arr[7, i, j] = mean_spline
-            arr[8, i, j] = mean_model_O2
-            arr[9, i, j] = mean_spline_O2
-
-
 def main(grid_size_arr: list[int], filename: str):
-    print("Grid size: ", grid_size_arr)
-    scaling_arr = [30]  # [4, 5, 6, 8, 10, 12, 16, 20, 24, 28, 32, 36]
+
+    scaling_arr = [4, 5, 6, 8, 10, 12, 16, 20, 24, 28, 32, 36]
 
     print("GPU available: ", torch.cuda.is_available())
     print("CPU available: ", os.cpu_count())
@@ -198,6 +144,61 @@ def main(grid_size_arr: list[int], filename: str):
     nj = len(scaling_arr)
 
     res = np.zeros((10, ni, nj))
+
+    def gpu_work(device, gs_arr, scl_arr, arr):
+
+        count = 0
+        for i, gz in enumerate(gs_arr):
+            for j, scl in enumerate(scl_arr):
+                count = count + 1
+                loss_train, loss_test, model = get_performance(gz, scl, device)
+                print(
+                    f"count : {count}-- {device} -- {gz},{scl} RMSE Train Loss: {np.sqrt(loss_train)}, Test Loss: {np.sqrt(loss_test)}"
+                )
+                (
+                    best_model,
+                    worst_model,
+                    mean_model,
+                    best_spline,
+                    worst_spline,
+                    mean_spline,
+                ) = check_generator_v3(
+                    model,
+                    ["lennard_jones", "morse"],
+                    n_samples=[5000, 5000],
+                    grid_size=gz,
+                    up_scale=scl,
+                    device=device,
+                )
+                print(f"RMSE Mean Model: {mean_model}, Spline: {mean_spline}")
+                (
+                    _,
+                    _,
+                    mean_model_O2,
+                    _,
+                    _,
+                    mean_spline_O2,
+                ) = check_generator_v3(
+                    model,
+                    ["reudenberg"],
+                    n_samples=[1],
+                    grid_size=gz,
+                    up_scale=scl,
+                    device=device,
+                )
+                print(
+                    f"RMSE for O2 Mean Model: {mean_model_O2}, Spline: {mean_spline_O2}"
+                )
+                arr[0, i, j] = np.sqrt(loss_train)
+                arr[1, i, j] = np.sqrt(loss_test)
+                arr[2, i, j] = best_model
+                arr[3, i, j] = worst_model
+                arr[4, i, j] = mean_model
+                arr[5, i, j] = best_spline
+                arr[6, i, j] = worst_spline
+                arr[7, i, j] = mean_spline
+                arr[8, i, j] = mean_model_O2
+                arr[9, i, j] = mean_spline_O2
 
     if torch.cuda.device_count() > 1:
 
@@ -241,5 +242,5 @@ if __name__ == "__main__":
 
     main(
         grid_size_arr=list(map(int, sys.argv[1][1:-1].split(","))),
-        filename="gen_vs_spline" + str(sys.argv[2]) + ".npy",
+        filename="./results/gen_vs_spline" + str(sys.argv[2]) + ".npy",
     )

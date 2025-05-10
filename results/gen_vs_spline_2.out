@@ -1,0 +1,193 @@
+no change     /share/apps/common/miniconda/miniconda3/condabin/conda
+no change     /share/apps/common/miniconda/miniconda3/bin/conda
+no change     /share/apps/common/miniconda/miniconda3/bin/conda-env
+no change     /share/apps/common/miniconda/miniconda3/bin/activate
+no change     /share/apps/common/miniconda/miniconda3/bin/deactivate
+no change     /share/apps/common/miniconda/miniconda3/etc/profile.d/conda.sh
+no change     /share/apps/common/miniconda/miniconda3/etc/fish/conf.d/conda.fish
+no change     /share/apps/common/miniconda/miniconda3/shell/condabin/Conda.psm1
+no change     /share/apps/common/miniconda/miniconda3/shell/condabin/conda-hook.ps1
+no change     /share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/xontrib/conda.xsh
+no change     /share/apps/common/miniconda/miniconda3/etc/profile.d/conda.csh
+no change     /home/albgzz/.zshrc
+No action taken.
+
+CondaError: Run 'conda init' before 'conda activate'
+
+GPU available:  True
+CPU available:  40
+GPU count 2
+Performance Initialized  cuda:0
+Performance Initialized  cuda:1
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/nn/modules/conv.py:306: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return F.conv1d(input, weight, bias, self.stride,
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/autograd/graph.py:744: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+count : 1-- cuda:0 -- 6,4 RMSE Train Loss: 0.0028625316412996668, Test Loss: 0.004666496728340944
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/nn/modules/conv.py:306: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return F.conv1d(input, weight, bias, self.stride,
+count : 1-- cuda:1 -- 8,4 RMSE Train Loss: 0.002338518878438832, Test Loss: 0.002952894327924226
+RMSE Mean Model: 0.0046512575969099995, Spline: 0.058643373693823386
+RMSE for O2 Mean Model: 0.005465347785502672, Spline: 0.02431032866793263
+Performance Initialized  cuda:0
+RMSE Mean Model: 0.0029820468019228427, Spline: 0.021051364499205145
+RMSE for O2 Mean Model: 0.0029396789614111185, Spline: 0.006825107886527133
+Performance Initialized  cuda:1
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/autograd/graph.py:744: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+count : 2-- cuda:0 -- 6,5 RMSE Train Loss: 0.002887840184088563, Test Loss: 0.0036578870562132644
+count : 2-- cuda:1 -- 8,5 RMSE Train Loss: 0.0025496369284574347, Test Loss: 0.003033398748015583
+RMSE Mean Model: 0.0033448296058690174, Spline: 0.05441738399649773
+RMSE for O2 Mean Model: 0.0036322171799838543, Spline: 0.022109213173454552
+Performance Initialized  cuda:0
+RMSE Mean Model: 0.0029490605144412256, Spline: 0.023933129685631067
+RMSE for O2 Mean Model: 0.0031571807339787483, Spline: 0.00826641211862069
+Performance Initialized  cuda:1
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/autograd/graph.py:744: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/autograd/graph.py:744: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+count : 3-- cuda:0 -- 6,6 RMSE Train Loss: 0.003265902724229257, Test Loss: 0.004320277070969744
+count : 3-- cuda:1 -- 8,6 RMSE Train Loss: 0.0021038888933568242, Test Loss: 0.00227859299125169
+RMSE Mean Model: 0.004177169759222306, Spline: 0.06674150092677482
+RMSE for O2 Mean Model: 0.004496898502111435, Spline: 0.02788574361623923
+Performance Initialized  cuda:0
+RMSE Mean Model: 0.002266450239508413, Spline: 0.02267481435972699
+RMSE for O2 Mean Model: 0.0024147506337612867, Spline: 0.00770351821479828
+Performance Initialized  cuda:1
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/autograd/graph.py:744: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/autograd/graph.py:744: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+count : 4-- cuda:0 -- 6,8 RMSE Train Loss: 0.002964230297349779, Test Loss: 0.0025288836494484616
+count : 4-- cuda:1 -- 8,8 RMSE Train Loss: 0.002555407700280518, Test Loss: 0.0031326176303581314
+RMSE Mean Model: 0.0022794587526936082, Spline: 0.05887306248643562
+RMSE for O2 Mean Model: 0.0030205317307263613, Spline: 0.02406290762380141
+Performance Initialized  cuda:0
+RMSE Mean Model: 0.003150869489880279, Spline: 0.026392847809907003
+RMSE for O2 Mean Model: 0.0030613618437200785, Spline: 0.009137777767790865
+Performance Initialized  cuda:1
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/autograd/graph.py:744: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/autograd/graph.py:744: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+count : 5-- cuda:0 -- 6,10 RMSE Train Loss: 0.0029972315516397546, Test Loss: 0.0036585724907124795
+count : 5-- cuda:1 -- 8,10 RMSE Train Loss: 0.0025558644110005454, Test Loss: 0.003165358121576001
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/nn/modules/conv.py:306: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return F.conv1d(input, weight, bias, self.stride,
+RMSE Mean Model: 0.0035463191588176414, Spline: 0.05871185340734493
+RMSE for O2 Mean Model: 0.0040741306729614735, Spline: 0.023982969428315126
+Performance Initialized  cuda:0
+RMSE Mean Model: 0.003080433391965926, Spline: 0.024252503226613948
+RMSE for O2 Mean Model: 0.0025685392320156097, Spline: 0.008292196191545203
+Performance Initialized  cuda:1
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/autograd/graph.py:744: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/autograd/graph.py:744: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+count : 6-- cuda:0 -- 6,12 RMSE Train Loss: 0.0027649468736979854, Test Loss: 0.0038101858642009046
+count : 6-- cuda:1 -- 8,12 RMSE Train Loss: 0.0029147681571754093, Test Loss: 0.002734094201804358
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/nn/modules/conv.py:306: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return F.conv1d(input, weight, bias, self.stride,
+RMSE Mean Model: 0.0037594858334166928, Spline: 0.06251641564836659
+RMSE for O2 Mean Model: 0.004524898249655962, Spline: 0.025810804164171565
+Performance Initialized  cuda:0
+RMSE Mean Model: 0.002579309035057668, Spline: 0.02451826476068013
+RMSE for O2 Mean Model: 0.00279091764241457, Spline: 0.008456251502638457
+Performance Initialized  cuda:1
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/autograd/graph.py:744: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/autograd/graph.py:744: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/autograd/graph.py:744: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+count : 7-- cuda:1 -- 8,16 RMSE Train Loss: 0.0020813914328487977, Test Loss: 0.0036752600038443654
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/nn/modules/conv.py:306: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return F.conv1d(input, weight, bias, self.stride,
+count : 7-- cuda:0 -- 6,16 RMSE Train Loss: 0.0032579257545622283, Test Loss: 0.0052398505152259035
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/nn/modules/conv.py:306: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return F.conv1d(input, weight, bias, self.stride,
+RMSE Mean Model: 0.0036340391399106013, Spline: 0.024933045610808852
+RMSE for O2 Mean Model: 0.0033655499573796988, Spline: 0.008653172986718584
+Performance Initialized  cuda:1
+RMSE Mean Model: 0.0051265313292853535, Spline: 0.06340067611666145
+RMSE for O2 Mean Model: 0.007815640419721603, Spline: 0.026731450922055058
+Performance Initialized  cuda:0
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/autograd/graph.py:744: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/autograd/graph.py:744: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+count : 8-- cuda:1 -- 8,20 RMSE Train Loss: 0.002154839221361529, Test Loss: 0.002443090431628882
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/nn/modules/conv.py:306: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return F.conv1d(input, weight, bias, self.stride,
+count : 8-- cuda:0 -- 6,20 RMSE Train Loss: 0.00318195438514476, Test Loss: 0.004152303230447031
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/nn/modules/conv.py:306: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return F.conv1d(input, weight, bias, self.stride,
+RMSE Mean Model: 0.002342292900674511, Spline: 0.024057629186619703
+RMSE for O2 Mean Model: 0.002223507734015584, Spline: 0.008347905908142196
+Performance Initialized  cuda:1
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/autograd/graph.py:744: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+RMSE Mean Model: 0.0040409642719430846, Spline: 0.060107045150983904
+RMSE for O2 Mean Model: 0.003652967745438218, Spline: 0.025024612738321107
+Performance Initialized  cuda:0
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/autograd/graph.py:744: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+count : 9-- cuda:1 -- 8,24 RMSE Train Loss: 0.002552325154377514, Test Loss: 0.0021334761293191375
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/nn/modules/conv.py:306: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return F.conv1d(input, weight, bias, self.stride,
+count : 9-- cuda:0 -- 6,24 RMSE Train Loss: 0.0032889910635994406, Test Loss: 0.00509986647743449
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/nn/modules/conv.py:306: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return F.conv1d(input, weight, bias, self.stride,
+RMSE Mean Model: 0.0020625676596187988, Spline: 0.02462705476637577
+RMSE for O2 Mean Model: 0.0025017790030688047, Spline: 0.008505536188904246
+Performance Initialized  cuda:1
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/autograd/graph.py:744: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+RMSE Mean Model: 0.004976063704956323, Spline: 0.06138719601692553
+RMSE for O2 Mean Model: 0.005640312563627958, Spline: 0.02574090889432553
+Performance Initialized  cuda:0
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/autograd/graph.py:744: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+count : 10-- cuda:1 -- 8,28 RMSE Train Loss: 0.0022161229595729854, Test Loss: 0.0026164295156497256
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/nn/modules/conv.py:306: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return F.conv1d(input, weight, bias, self.stride,
+count : 10-- cuda:0 -- 6,28 RMSE Train Loss: 0.0027154572194335916, Test Loss: 0.004130411797370401
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/nn/modules/conv.py:306: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return F.conv1d(input, weight, bias, self.stride,
+RMSE Mean Model: 0.002489409571653232, Spline: 0.023916256386372917
+RMSE for O2 Mean Model: 0.0022416883148252964, Spline: 0.008309667929062499
+Performance Initialized  cuda:1
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/autograd/graph.py:744: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+RMSE Mean Model: 0.004068185939313844, Spline: 0.06145767401698501
+RMSE for O2 Mean Model: 0.003418698674067855, Spline: 0.02553225586705807
+Performance Initialized  cuda:0
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/autograd/graph.py:744: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+count : 11-- cuda:1 -- 8,32 RMSE Train Loss: 0.0025842423606900165, Test Loss: 0.002946848390938739
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/nn/modules/conv.py:306: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return F.conv1d(input, weight, bias, self.stride,
+count : 11-- cuda:0 -- 6,32 RMSE Train Loss: 0.0032871640596352863, Test Loss: 0.0069264020359191105
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/nn/modules/conv.py:306: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return F.conv1d(input, weight, bias, self.stride,
+RMSE Mean Model: 0.0028775636554695667, Spline: 0.024298877914384776
+RMSE for O2 Mean Model: 0.0026421824004501104, Spline: 0.00842803458163307
+Performance Initialized  cuda:1
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/autograd/graph.py:744: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+RMSE Mean Model: 0.006914210911700502, Spline: 0.06165742114369641
+RMSE for O2 Mean Model: 0.008349010720849037, Spline: 0.026014830654874685
+Performance Initialized  cuda:0
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/autograd/graph.py:744: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+count : 12-- cuda:1 -- 8,36 RMSE Train Loss: 0.00244114282493514, Test Loss: 0.0036266540269112696
+count : 12-- cuda:0 -- 6,36 RMSE Train Loss: 0.0033152964653493508, Test Loss: 0.00540383762478021
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/nn/modules/conv.py:306: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return F.conv1d(input, weight, bias, self.stride,
+/share/apps/common/miniconda/miniconda3/lib/python3.12/site-packages/torch/nn/modules/conv.py:306: UserWarning: Plan failed with a cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR: cudnnFinalize Descriptor Failed cudnn_status: CUDNN_STATUS_NOT_SUPPORTED (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:919.)
+  return F.conv1d(input, weight, bias, self.stride,
+RMSE Mean Model: 0.0035868204997386785, Spline: 0.025154358155439593
+RMSE for O2 Mean Model: 0.0034213082399219275, Spline: 0.008764899164111595
+RMSE Mean Model: 0.00528715763837099, Spline: 0.0627652235333825
+RMSE for O2 Mean Model: 0.006082890555262566, Spline: 0.026406340984960634
