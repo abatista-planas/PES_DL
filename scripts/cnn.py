@@ -13,7 +13,7 @@ from pes_1D.discriminator import CnnDiscriminator  # type: ignore
 from pes_1D.utils import get_model_failure_info  # type: ignore
 from pes_1D.visualization import sample_visualization  # type: ignore
 
-n_samples = [10000]
+n_samples = [1000]
 grid_size = 150
 batch_size = 50
 test_split = 0.9
@@ -70,7 +70,7 @@ model_parameters = {
 
 
 model = CnnDiscriminator(model_parameters).cuda()
-model.summary()
+# model.summary()
 
 # global parameter
 num_epochs = 300
@@ -133,12 +133,3 @@ accuracy, y_pred, y_true = model.test_model(test_loader_non_included)
 print(f"NonIncluded Accuracy :{accuracy}")
 
 get_model_failure_info(df_pes_non_included, y_pred, y_true)
-
-if (accuracy + testAcc) / 2 > 99.0:
-    print("Saving model ...")
-    # Save the model
-    torch.save(
-        model,
-        "/home/albplanas/Desktop/Programming/PES_DL/PES_DL/saved_models/"
-        + "CNN_Discriminator.pth",
-    )

@@ -176,10 +176,10 @@ def generate_generator_training_set_from_df(
         test_input_hr = test_input_hr.to(device)
 
     if properties_format == "table_1D":
-        train_input_lr = train_input_hr[:, :, :, indices].to(device)
-        test_input_lr = test_input_hr[:, :, :, indices].to(device)
-        train_input_hr = train_input_hr.to(device)
-        test_input_hr = test_input_hr.to(device)
+        train_input_lr = train_input_hr[:, :, :, indices].squeeze(1).to(device)
+        test_input_lr = test_input_hr[:, :, :, indices].squeeze(1).to(device)
+        train_input_hr = train_input_hr.squeeze(1).to(device)
+        test_input_hr = test_input_hr.squeeze(1).to(device)
 
     # then convert them into PyTorch Datasets (note: already converted to tensors)
     train_data = TensorDataset(train_input_lr, train_input_hr)
