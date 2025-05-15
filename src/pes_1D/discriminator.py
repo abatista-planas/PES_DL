@@ -277,58 +277,6 @@ class CnnDiscriminator(Discriminator):
         )
 
 
-# class CnnDiscriminator2(Discriminator):
-#     def __init__(self, model_paramaters):
-#         """_summary_
-
-#         Args:
-#             model_paramaters (_type_): "in_features"
-
-#         """
-#         super(CnnDiscriminator2, self).__init__()
-#         self.params = model_paramaters
-#         sz = self.params["grid_size"]
-#         self.layers["cv_0"] = nn.Conv1d(
-#             self.params["in_channels"],
-#             self.params["hidden_channels"][0],
-#             kernel_size=self.params["kernel_size"][0],
-#             stride=1,
-#             padding=0,
-#         )
-
-#         self.layers["cv_1"] = nn.Conv1d(
-#             self.params["hidden_channels"][0],
-#             self.params["hidden_channels"][1],
-#             kernel_size=self.params["kernel_size"][1],
-#             stride=1,
-#             padding=0,
-#         )
-
-#         for i in range(len(self.params["pool_size"])):
-#             sz = floor(
-#                 (sz - self.params["kernel_size"][i] + 1) / self.params["pool_size"][i]
-#             )
-
-#         self.layers["fc_0"] = nn.Linear(sz * self.params["hidden_channels"][-1], 128)
-#         self.layers["output"] = nn.Linear(128, 1)
-#         self.sigmoid = nn.Sigmoid()
-
-#     def forward(self, x):
-#         # x = x.view(x.shape[0], x.shape[1], -1)
-#         x = F.relu(self.layers["cv_0"](x))
-#         x = F.avg_pool1d(x, kernel_size=self.params["pool_size"][0])
-#         x = F.relu(self.layers["cv_1"](x))
-#         x = F.avg_pool1d(x, kernel_size=self.params["pool_size"][1])
-
-#         x = torch.flatten(x, start_dim=1)
-#         x = F.relu(self.layers["fc_0"](x))
-#         # output layer
-#         x = self.layers["output"](x)
-#         print(x.shape)
-#         x = self.sigmoid(x)
-#         return x
-
-
 class SRDiscriminator(Discriminator):
     def __init__(self, model_paramaters):
         """_summary_

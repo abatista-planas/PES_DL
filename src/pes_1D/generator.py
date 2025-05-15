@@ -296,3 +296,59 @@ class ResNetUpscaler(Generator):
         x = self.res_blocks(x)
         x = self.upscale(x)
         return x
+
+
+class ResidualBlock_B(nn.Module):
+    def __init__(self, channels):
+        super(ResidualBlock_B, self).__init__()
+
+        self.block = nn.Sequential(
+            nn.Conv1d(channels, channels, kernel_size=3, padding=1),
+            nn.BatchNorm1d(channels),
+            nn.LeakyReLU(0.2),
+            nn.Conv1d(channels, channels, kernel_size=3, padding=1),
+            nn.BatchNorm1d(channels),
+        )
+
+    def forward(self, x):
+        return x + self.block(x)
+
+
+class ResNetUpscaler_B(Generator):
+    def __init__(self, upscale_factor, num_channels=32, num_blocks=1):
+        super(ResNetUpscaler_B, self).__init__()
+
+        self.input_layer = nn.Sequential(
+            nn.Conv1d(1, num_channels, kernel_size=3, padding=1),
+            nn.LeakyReLU(0.2),
+        )
+        self.res_blocks = nn.Sequential(
+            *[ResidualBlock_B(num_channels) for _ in range(num_blocks)]
+        )
+
+        self.upscale = nn.Sequential(
+            nn.ConvTranspose1d(
+                num_channels,
+                num_channels,
+                kernel_size=upscale_factor,
+                stride=upscale_factor,
+            ),
+            nn.LeakyReLU(0.2),
+            nn.Conv1d(num_channels, 1, kernel_size=3, padding=1),
+        )
+
+        # Apply Kaiming initialization
+        self.apply(self.init_weights)
+
+    def init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            nn.init.kaiming_normal_(m.weight, nonlinearity="relu")
+            if m.bias is not None:
+                nn.init.zeros_(m.bias)
+
+    def forward(self, x):
+
+        x0 = self.input_layer(x)
+        x1 = x0 + self.res_blocks(x0)
+        x2 = self.upscale(x1)
+        return x2
