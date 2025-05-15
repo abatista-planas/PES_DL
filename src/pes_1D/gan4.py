@@ -218,7 +218,6 @@ for epoch in range(num_epochs):
             # -- Train Generator --
 
             G.zero_grad()
-            # gen_hr = G(lr[:, 1, :].unsqueeze(1).to(device))
 
             mse = mse_loss(fake_hr[:, 1, :], hr[:, 1, :])
             derivative_mse = mse_loss(fake_hr[:, 2, :], hr[:, 2, :])
@@ -230,9 +229,9 @@ for epoch in range(num_epochs):
                     fake_hr[:, 1, 2:] - 2 * fake_hr[:, 1, 1:-1] + fake_hr[:, 1, :-2]
                 )
             )
-            smooth_weight = 1
-            D_weight = 10**-5
-            v_weight = 0.05
+            smooth_weight = 0.05
+            D_weight = 10**-4
+            v_weight = 0.01
             l_weight = 100
             mse_weight = 1
             lossG = (
@@ -252,7 +251,7 @@ for epoch in range(num_epochs):
                 if torch.equal(initial, trained):
                     print("G Model has not been trained.")
 
-    if epoch % 20 == 0:
+    if epoch % 50 == 0:
         test_mse = eval_models()
 
         if len(realAcc) > 0:
