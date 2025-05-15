@@ -10,9 +10,10 @@ import pandas as pd  # type: ignore
 import scipy.optimize as optimize  # type: ignore
 import torch
 from sklearn.model_selection import train_test_split  # type: ignore
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader, DistributedSampler, TensorDataset
 
 from pes_1D.utils import Normalizers  # type: ignore
+from pes_1D.utils import derivative_np  # type: ignore
 from pes_1D.utils import NoiseFunctions, PesModels
 
 
@@ -191,6 +192,95 @@ def generate_generator_training_set_from_df(
     test_loader = DataLoader(test_data, batch_size=test_data.tensors[0].shape[0])
 
     return (train_loader, test_loader, shuffled_df, train_input_lr, train_input_hr)
+
+
+def generate_disciminator_training_set_from_G(
+    df_all: pd.DataFrame,
+    G,
+    parallel: bool = False,
+    world_size: int = 2,
+    rank: int = 0,
+    batch_size: int = 100,
+    up_scale: int = 4,
+    properties_list: list[str] = ["energy"],
+    properties_format: str = "table_1D",
+    test_split: float = 0.2,
+    device="cpu",
+):  # -> Tuple[DataLoader, DataLoader, pd.DataFrame, TensorDataset]:
+    """Generates training sets for the Lennard-Jones potential"""
+
+    train_input_hr, test_input_hr, _, _, shuffled_df = split_data(
+        df_all,
+        properties_list,
+        properties_format,
+        test_split,
+    )
+
+    train_input_hr = torch.unsqueeze(train_input_hr, dim=1)
+    test_input_hr = torch.unsqueeze(test_input_hr, dim=1)
+
+    tensor_len = train_input_hr.size(-1)
+
+    indices = torch.linspace(
+        0, tensor_len - 1, int(tensor_len / up_scale), dtype=torch.long
+    )
+
+    if properties_format == "table_1D":
+        train_input_lr = train_input_hr[:, :, :, indices].squeeze(1)
+        test_input_lr = test_input_hr[:, :, :, indices].squeeze(1)
+        train_input_hr = train_input_hr.squeeze(1)
+        test_input_hr = test_input_hr.squeeze(1)
+
+    fake_train_hr = get_generator_hr(G, train_input_lr, train_input_hr, device)
+    fake_test_hr = get_generator_hr(G, test_input_lr, test_input_hr, device)
+
+    # then convert them into PyTorch Datasets (note: already converted to tensors)
+    train_dataset = TensorDataset(train_input_hr.to(device), fake_train_hr.to(device))
+    test_dataset = TensorDataset(test_input_hr.to(device), fake_test_hr.to(device))
+
+    # finally, translate into dataloader objects
+    if parallel:
+        sampler_train: DistributedSampler = DistributedSampler(
+            train_dataset, num_replicas=world_size, rank=rank
+        )
+        sampler_test: DistributedSampler = DistributedSampler(
+            test_dataset, num_replicas=world_size, rank=rank
+        )
+        train_loader = DataLoader(
+            train_dataset, batch_size=batch_size, drop_last=True, sampler=sampler_train
+        )
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=test_dataset.tensors[0].shape[0],
+            sampler=sampler_test,
+        )
+    else:
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, drop_last=True)
+        test_loader = DataLoader(
+            test_dataset, batch_size=test_dataset.tensors[0].shape[0]
+        )
+
+    return (train_loader, test_loader, train_input_hr, fake_train_hr)
+
+
+def get_generator_hr(G, lr, hr, device):
+
+    gen_hr = G(lr[:, 1, :].unsqueeze(1).to(device))
+    r = hr[:, 0, :].clone().detach().cpu().numpy()
+    dr = np.abs(np.max(r, axis=0) - np.min(r, axis=0)) / r.shape[-1]
+    v = gen_hr[:, 0, :].clone().detach().cpu().numpy()
+
+    output_tensor = hr.clone()
+    output_tensor[:, 1, :] = gen_hr[:, 0, :]
+    df = derivative_np(v)
+    df = df * (1e-3 / dr)
+    df = Normalizers.normalize(df)
+
+    inv_df = Normalizers.normalize(1 / (df + 1e-10))
+    output_tensor[:, 2, :] = torch.from_numpy(df).to(device)
+    output_tensor[:, 3, :] = torch.from_numpy(inv_df).to(device)
+
+    return output_tensor
 
 
 def generate_bad_samples(
@@ -470,3 +560,6 @@ def generate_analytical_pes_samples(
             "deformation_parameters": [{}] * n_samples,
         }
     )
+
+
+# Simple dataset generating sine waves

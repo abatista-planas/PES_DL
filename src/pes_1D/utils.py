@@ -4,9 +4,20 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 import torch
-from scipy.differentiate import derivative  # type: ignore
 
 from pes_1D.visualization import plot_confusion_matrix, sample_visualization
+
+
+def derivative_np(v, dr=0.001):
+    """
+    Prepare discriminator data for training.
+    """
+    if v.ndim == 2:
+        return np.gradient(v, dr, axis=1)
+
+    elif v.ndim == 1:
+
+        return np.gradient(v, dr)
 
 
 class NoiseFunctions:
@@ -43,10 +54,8 @@ class NoiseFunctions:
 
             return A * fr / max_fr
 
-        oscillation_function = f(r)
-        oscillation_derivative = derivative(f, r).df
-
-        return oscillation_function, oscillation_derivative
+        fr = f(r)
+        return fr, derivative_np(fr, np.abs(np.max(r) - np.min(r)) / r.shape[-1])
 
     @staticmethod
     def pulse_random_fn(
@@ -75,10 +84,8 @@ class NoiseFunctions:
 
             return nm_fr * nm_gaussian
 
-        oscillation_function = f(r)
-        oscillation_derivative = derivative(f, r).df
-
-        return oscillation_function, oscillation_derivative, label
+        fr = f(r)
+        return fr, derivative_np(fr, np.abs(np.max(r) - np.min(r)) / r.shape[-1]), label
 
     @staticmethod
     def piecewise_random(
@@ -96,7 +103,12 @@ class NoiseFunctions:
 
             return less_cond * f1(r_) + greater_cond * (f2(r_) - f2_r0 + f1_r0)
 
-        return f(r), derivative(f, r).df, labels
+        fr = f(r)
+        return (
+            fr,
+            derivative_np(fr, np.abs(np.max(r) - np.min(r)) / r.shape[-1]),
+            labels,
+        )
 
     @staticmethod
     def noise(
@@ -108,7 +120,7 @@ class NoiseFunctions:
             return A * np.random.normal(0.0, noise_level, size=size)
 
         noise_function = f()
-        noise_derivative = derivative(f).df
+        noise_derivative = np.zeros_like(noise_function)
         return noise_function, noise_derivative
 
     @staticmethod
@@ -151,9 +163,13 @@ class NoiseFunctions:
         func_label = np.random.choice(list(funct_dict.keys()))
         f = funct_dict[func_label]
 
-        deriv = derivative(f, r)
-
-        return f(r), deriv.df, func_label, f
+        fr = f(r)
+        return (
+            fr,
+            derivative_np(fr, np.abs(np.max(r) - np.min(r)) / r.shape[-1]),
+            func_label,
+            f,
+        )
 
 
 class PesModels:
@@ -205,13 +221,15 @@ class PesModels:
             func = getattr(PesModels, pes_name)
             return func(parameters, r_)
 
-        pes_derivative = derivative(pes, r)
+        pes_f = pes(r)
+        pes_df = derivative_np(pes_f, np.abs(R_max - R_min) / size)
+        inv_df = 1 / (pes_df + 1e-10)
         return pd.DataFrame(
             {
                 "r": r,
-                "energy": pes(r),
-                "derivative": pes_derivative.df,
-                "inverse_derivative": 1.0 / (pes_derivative.df + 1e-10),
+                "energy": pes_f,
+                "derivative": pes_df,
+                "inverse_derivative": inv_df,
             }
         )
 
@@ -271,13 +289,15 @@ class Normalizers:
     @staticmethod
     def min_max_normalize(data: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
         """Min-max normalization of the data."""
-        min_val = np.min(data)
-        max_val = np.max(data)
+        min_val = np.min(data, axis=data.ndim - 1)
+        max_val = np.max(data, axis=data.ndim - 1)
 
-        if np.abs(max_val - min_val) <= 1e-10:
-            return data / max_val
+        if data.ndim == 1:
+            return (data - min_val) / (max_val - min_val + 1e-10)
         else:
-            return (data - min_val) / (max_val - min_val)
+            return (data - min_val[:, np.newaxis]) / (
+                max_val[:, np.newaxis] - min_val[:, np.newaxis] + 1e-10
+            )
 
     @staticmethod
     def zero_normalize(data: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
