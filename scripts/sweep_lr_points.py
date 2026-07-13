@@ -9,7 +9,13 @@ supervised CNN (MSE only), and the fixed conditional GAN (CNN + adversarial
 fine-tuning).  An out-of-family test on the Reudenberg O2 curve is included
 to check that the learned prior generalizes beyond LJ/Morse.
 
-Usage:  python scripts/sweep_lr_points.py [outdir]
+Usage:  python scripts/sweep_lr_points.py [outdir] [placement]
+
+placement: "uniform" (default) — evenly spaced observed points;
+"irregular" — per-curve random placements (endpoints kept, interior
+points drawn without replacement, so clusters and gaps occur). In
+irregular mode the networks train on per-curve random placements and
+the O2 curve is evaluated over 32 random placements.
 """
 
 import copy
@@ -35,6 +41,7 @@ from pes_1D.superres import (
     predict_gp,
     predict_linear,
     predict_nn,
+    random_lr_indices,
     rmse_per_curve,
     sample_dataset,
     sample_pes_curve,
@@ -52,11 +59,12 @@ EPOCHS_GAN = 25
 SEED = 7
 
 
-def main(outdir: Path) -> None:
+def main(outdir: Path, placement: str = "uniform") -> None:
     outdir.mkdir(parents=True, exist_ok=True)
     torch.set_num_threads(4)
     torch.manual_seed(SEED)
     rng = np.random.default_rng(SEED)
+    idx_rng = np.random.default_rng(SEED + 10)
 
     print(f"Generating data for families: {FAMILIES} ...")
     train_hr, _ = sample_dataset(rng, N_TRAIN_PER_FAMILY, HR_SIZE, FAMILIES)
@@ -73,27 +81,35 @@ def main(outdir: Path) -> None:
     gan_health = {}
     for n_lr in N_SWEEP:
         t0 = time.time()
-        idx = lr_indices(HR_SIZE, n_lr)
-        print(f"\n===== N = {n_lr} observed points =====")
+        if placement == "uniform":
+            idx_train = idx_test = lr_indices(HR_SIZE, n_lr)
+            o2_eval = o2_hr
+            idx_o2 = idx_train
+        else:  # per-curve irregular placements; O2 over 32 placements
+            idx_train = random_lr_indices(idx_rng, HR_SIZE, n_lr, len(train_hr))
+            idx_test = random_lr_indices(idx_rng, HR_SIZE, n_lr, len(test_hr))
+            o2_eval = np.repeat(o2_hr, 32, axis=0)
+            idx_o2 = random_lr_indices(idx_rng, HR_SIZE, n_lr, len(o2_eval))
+        print(f"\n===== N = {n_lr} observed points ({placement}) =====")
 
         # --- classical baselines (per test curve) ---
         preds = {
-            "linear": predict_linear(test_hr, idx),
-            "cubic_spline": predict_cubic_spline(test_hr, idx),
-            "gp_rbf": predict_gp(test_hr, idx, "rbf"),
-            "gp_matern": predict_gp(test_hr, idx, "matern"),
+            "linear": predict_linear(test_hr, idx_test),
+            "cubic_spline": predict_cubic_spline(test_hr, idx_test),
+            "gp_rbf": predict_gp(test_hr, idx_test, "rbf"),
+            "gp_matern": predict_gp(test_hr, idx_test, "matern"),
         }
         o2_preds = {
-            "linear": predict_linear(o2_hr, idx),
-            "cubic_spline": predict_cubic_spline(o2_hr, idx),
-            "gp_rbf": predict_gp(o2_hr, idx, "rbf"),
-            "gp_matern": predict_gp(o2_hr, idx, "matern"),
+            "linear": predict_linear(o2_eval, idx_o2),
+            "cubic_spline": predict_cubic_spline(o2_eval, idx_o2),
+            "gp_rbf": predict_gp(o2_eval, idx_o2, "rbf"),
+            "gp_matern": predict_gp(o2_eval, idx_o2, "matern"),
         }
 
         # --- neural models ---
-        cond_train = build_conditioning(train_hr, idx)
-        cond_test = build_conditioning(test_hr, idx)
-        cond_o2 = build_conditioning(o2_hr, idx)
+        cond_train = build_conditioning(train_hr, idx_train)
+        cond_test = build_conditioning(test_hr, idx_test)
+        cond_o2 = build_conditioning(o2_eval, idx_o2)
 
         gen_sup = RefineGenerator()
         train_supervised(
@@ -126,7 +142,7 @@ def main(outdir: Path) -> None:
                 n_lr=n_lr, model=name,
                 rmse_mean=float(e.mean()), rmse_median=float(np.median(e)),
                 rmse_p90=float(np.percentile(e, 90)),
-                rmse_o2=float(rmse_per_curve(o2_preds[name], o2_hr)[0]),
+                rmse_o2=float(rmse_per_curve(o2_preds[name], o2_eval).mean()),
             )
             for fam in FAMILIES:
                 row[f"rmse_{fam}"] = float(e[test_fam == fam].mean())
@@ -173,6 +189,7 @@ def main(outdir: Path) -> None:
     with open(outdir / "SUMMARY.md", "w") as f:
         f.write("# Sweep: high-res surface RMSE vs number of observed points\n\n")
         f.write(f"High-res grid: {HR_SIZE} points; energies normalized to [-1, 1].\n")
+        f.write(f"Point placement: {placement}.\n")
         f.write(f"Families: {', '.join(FAMILIES)}.\n")
         f.write(f"Train: {len(FAMILIES) * N_TRAIN_PER_FAMILY} curves; ")
         f.write(f"test: {len(FAMILIES) * N_TEST_PER_FAMILY} curves.\n\n")
@@ -195,4 +212,7 @@ def main(outdir: Path) -> None:
 
 
 if __name__ == "__main__":
-    main(Path(sys.argv[1]) if len(sys.argv) > 1 else Path("results/sweep"))
+    main(
+        Path(sys.argv[1]) if len(sys.argv) > 1 else Path("results/sweep"),
+        sys.argv[2] if len(sys.argv) > 2 else "uniform",
+    )
