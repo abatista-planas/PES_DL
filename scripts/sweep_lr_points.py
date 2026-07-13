@@ -214,7 +214,7 @@ def main(outdir: Path, placement: str = "uniform") -> None:
         f.write(f"Point placement: {placement}.\n")
         f.write(f"Device: {device}; scale x{SCALE}.\n")
         f.write(f"Families: {', '.join(FAMILIES)}.\n")
-        f.write(f"Train: {len(FAMILIES) * N_TRAIN_PER_FAMILY} curves; ")
+        f.write(f"Train: {len(FAMILIES) * n_train_per_family} curves; ")
         f.write(f"test: {len(FAMILIES) * N_TEST_PER_FAMILY} curves.\n\n")
         f.write("## Mean RMSE, in-family test set\n\n")
         f.write(piv.to_markdown(floatfmt=".3e") + "\n\n")
