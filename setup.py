@@ -20,6 +20,8 @@ requirements_dev = [
     "pre-commit",
     "pytest",
     "pytest-cov",
+    "wfdb",
+    "pyod",
 ]
 
 setup(

@@ -183,3 +183,6 @@ scripts/plots/
 .conda
 scripts/tuning/results/
 *.ipynb
+
+# Raw datasets (not version-controlled)
+data/
