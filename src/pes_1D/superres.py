@@ -53,6 +53,27 @@ def morse(r: np.ndarray, a: float, r0: float) -> np.ndarray:
     return (1.0 - np.exp(-a * (r - r0))) ** 2 - 1.0
 
 
+def buckingham_exp6(r: np.ndarray, alpha: float, rm: float) -> np.ndarray:
+    """Reduced Buckingham exp-6 potential (depth 1 at rm).
+
+    Only valid to the right of the spurious short-range turnover; the
+    sampler clips the window there.
+    """
+    x = r / rm
+    return (6.0 / (alpha - 6.0)) * np.exp(alpha * (1.0 - x)) - (
+        alpha / (alpha - 6.0)
+    ) * x**-6
+
+
+def extended_rydberg(r: np.ndarray, a1: float, re: float, b2: float, b3: float) -> np.ndarray:
+    """Extended Rydberg potential in reduced form (depth ~1 near re).
+
+    V(u) = -(1 + u + b2 u^2 + b3 u^3) exp(-u) with u = a1 (r - re).
+    """
+    u = a1 * (r - re)
+    return -(1.0 + u + b2 * u**2 + b3 * u**3) * np.exp(-u)
+
+
 def reudenberg_o2(r: np.ndarray) -> np.ndarray:
     """Reudenberg O2 potential (out-of-family test case), long-range shifted."""
     coeff = [
@@ -67,6 +88,21 @@ def reudenberg_o2(r: np.ndarray) -> np.ndarray:
     for i in range(len(coeff) - 1):
         zero = zero + coeff[i + 1] * np.exp(-(c3**i) * c2 * 100.0**2) * c1
     return pes - zero[0]
+
+
+def _valid_single_well(v: np.ndarray) -> bool:
+    """True if v is a repulsive wall + single well + monotonic tail."""
+    i_min = int(np.argmin(v))
+    if i_min == 0 or i_min == len(v) - 1:
+        return False
+    span = float(v.max() - v.min())
+    if v[0] < 3.05 * abs(v[i_min]):  # wall must clear the largest wall_factor
+        return False
+    tol = 1e-9 * span
+    return bool(
+        np.all(np.diff(v[: i_min + 1]) <= tol)
+        and np.all(np.diff(v[i_min:]) >= -tol)
+    )
 
 
 def _crossing(r: np.ndarray, v: np.ndarray, level: float) -> float:
@@ -107,6 +143,28 @@ def sample_pes_curve(
         r0 = float(rng.uniform(1.2, 10.0))
         r_dense = np.linspace(max(0.02, r0 - 3.0 / a), r0 + 8.0 / a, 4096)
         pes = lambda r: morse(r, a, r0)  # noqa: E731
+    elif family == "buckingham_exp6":
+        alpha = float(rng.uniform(10.5, 16.0))
+        rm = float(rng.uniform(1.2, 10.0))
+        pes = lambda r: buckingham_exp6(r, alpha, rm)  # noqa: E731
+        # clip the window to the right of the spurious short-range maximum
+        probe = np.linspace(0.15 * rm, 5.0 * rm, 4096)
+        i_top = int(np.argmax(pes(probe)))
+        r_dense = np.linspace(probe[i_top], 5.0 * rm, 4096)
+    elif family == "extended_rydberg":
+        for _ in range(100):
+            a1 = float(rng.uniform(2.5, 6.0))
+            re = float(rng.uniform(1.5, 8.0))
+            b2 = float(rng.uniform(0.0, 0.5))
+            b3 = float(rng.uniform(0.0, 0.2))
+            pes = lambda r: extended_rydberg(r, a1, re, b2, b3)  # noqa: E731
+            r_dense = np.linspace(max(0.02, re - 4.0 / a1), re + 10.0 / a1, 4096)
+            if _valid_single_well(pes(r_dense)):
+                break
+        else:  # always-valid fallback: plain Rydberg (1 + u) exp(-u)
+            b2 = b3 = 0.0
+            pes = lambda r: extended_rydberg(r, a1, re, 0.0, 0.0)  # noqa: E731
+            r_dense = np.linspace(max(0.02, re - 4.0 / a1), re + 10.0 / a1, 4096)
     elif family == "reudenberg_o2":
         r_dense = np.linspace(0.6, 6.0, 4096)
         pes = reudenberg_o2
@@ -117,7 +175,9 @@ def sample_pes_curve(
     i_min = int(np.argmin(v))
     depth = abs(float(v[i_min]))
 
-    r_lo = _crossing(r_dense[: i_min + 1], v[: i_min + 1], wall_factor * depth)
+    # keep the wall level below the highest available point on the left branch
+    wall = min(wall_factor * depth, 0.9 * float(v[0]))
+    r_lo = _crossing(r_dense[: i_min + 1], v[: i_min + 1], wall)
     r_hi = _crossing(r_dense[i_min:], -v[i_min:], tail_factor * depth)
 
     r_grid = np.linspace(r_lo, r_hi, hr_size)
@@ -126,18 +186,28 @@ def sample_pes_curve(
     return (2.0 * (e - e_min) / (e_max - e_min + 1e-12) - 1.0).astype(np.float32)
 
 
+DEFAULT_FAMILIES = ("lennard_jones", "morse")
+
+
 def sample_dataset(
-    rng: np.random.Generator, n_per_family: int, hr_size: int
-) -> np.ndarray:
-    """Stack of normalized curves from both families, shape [B, hr_size]."""
+    rng: np.random.Generator,
+    n_per_family: int,
+    hr_size: int,
+    families: tuple[str, ...] = DEFAULT_FAMILIES,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Normalized curves from the given families.
+
+    Returns (curves [B, hr_size], family labels [B]), jointly shuffled.
+    """
     curves = [
         sample_pes_curve(rng, fam, hr_size)
-        for fam in ("lennard_jones", "morse")
+        for fam in families
         for _ in range(n_per_family)
     ]
+    labels = np.array([fam for fam in families for _ in range(n_per_family)])
     out = np.stack(curves)
-    rng.shuffle(out)
-    return out
+    perm = rng.permutation(len(out))
+    return out[perm], labels[perm]
 
 
 def lr_indices(hr_size: int, n_lr: int) -> np.ndarray:
