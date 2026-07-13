@@ -263,24 +263,33 @@ def generate_disciminator_training_set_from_G(
     return (train_loader, test_loader, train_input_hr, fake_train_hr)
 
 
+def _normalize_torch(data: torch.Tensor) -> torch.Tensor:
+    """Min-max normalization to [-1, 1] along the last axis (differentiable)."""
+    min_val = data.min(dim=-1, keepdim=True).values
+    max_val = data.max(dim=-1, keepdim=True).values
+    return 2.0 * (data - min_val) / (max_val - min_val + 1e-10) - 1.0
+
+
 def get_generator_hr(G, lr, hr, device):
+    """Build the discriminator input from the generator output.
 
+    All channels are computed with torch ops so gradients can flow from the
+    discriminator back into G. The previous implementation detoured the
+    derivative channels through numpy (detach + np.gradient), which cut
+    2 of the 3 channels out of the autograd graph, so D could win on
+    features G never received gradient through.
+    """
     gen_hr = G(lr[:, 1, :].unsqueeze(1).to(device))
-    r = hr[:, 0, :].clone().detach().cpu().numpy()
-    dr = np.abs(np.max(r, axis=0) - np.min(r, axis=0)) / r.shape[-1]
-    v = gen_hr[:, 0, :].clone().detach().cpu().numpy()
+    v = gen_hr[:, 0, :]
 
-    output_tensor = hr.clone()
-    output_tensor[:, 1, :] = gen_hr[:, 0, :]
-    df = derivative_np(v)
-    df = df * (1e-3 / dr)
-    df = Normalizers.normalize(df)
+    r = hr[:, 0, :].to(device)
+    dr = (r[:, -1] - r[:, 0]).abs().unsqueeze(-1) / r.shape[-1]
 
-    inv_df = Normalizers.normalize(1 / (df + 1e-10))
-    output_tensor[:, 2, :] = torch.from_numpy(df).to(device)
-    output_tensor[:, 3, :] = torch.from_numpy(inv_df).to(device)
+    df = torch.gradient(v, dim=-1)[0] / dr
+    df = _normalize_torch(df)
+    inv_df = _normalize_torch(1.0 / (df + 1e-10))
 
-    return output_tensor
+    return torch.stack([r, v, df, inv_df], dim=1)
 
 
 def generate_bad_samples(
