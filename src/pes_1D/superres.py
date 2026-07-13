@@ -215,6 +215,27 @@ def lr_indices(hr_size: int, n_lr: int) -> np.ndarray:
     return np.round(np.linspace(0, hr_size - 1, n_lr)).astype(int)
 
 
+def random_lr_indices(
+    rng: np.random.Generator, hr_size: int, n_lr: int, n_curves: int
+) -> np.ndarray:
+    """Per-curve irregular placements [n_curves, n_lr]: endpoints kept,
+    interior points drawn uniformly without replacement (no minimum
+    spacing, so clusters and gaps occur — the realistic stress case)."""
+    out = np.empty((n_curves, n_lr), dtype=int)
+    for i in range(n_curves):
+        interior = rng.choice(np.arange(1, hr_size - 1), size=n_lr - 2, replace=False)
+        out[i] = np.sort(np.concatenate([[0, hr_size - 1], interior]))
+    return out
+
+
+def _idx_rows(idx: np.ndarray, n_curves: int) -> np.ndarray:
+    """Broadcast a shared [n] index set to per-curve [n_curves, n] form."""
+    idx = np.asarray(idx)
+    if idx.ndim == 1:
+        return np.broadcast_to(idx, (n_curves, idx.shape[0]))
+    return idx
+
+
 # ---------------------------------------------------------------------------
 # Classical baselines
 # ---------------------------------------------------------------------------
@@ -222,12 +243,18 @@ def lr_indices(hr_size: int, n_lr: int) -> np.ndarray:
 
 def predict_linear(e_hr: np.ndarray, idx: np.ndarray) -> np.ndarray:
     x = np.linspace(0.0, 1.0, e_hr.shape[-1])
-    return np.stack([np.interp(x, x[idx], row[idx]) for row in e_hr])
+    rows_idx = _idx_rows(idx, e_hr.shape[0])
+    return np.stack(
+        [np.interp(x, x[ix], row[ix]) for row, ix in zip(e_hr, rows_idx)]
+    )
 
 
 def predict_cubic_spline(e_hr: np.ndarray, idx: np.ndarray) -> np.ndarray:
     x = np.linspace(0.0, 1.0, e_hr.shape[-1])
-    return np.stack([CubicSpline(x[idx], row[idx])(x) for row in e_hr])
+    rows_idx = _idx_rows(idx, e_hr.shape[0])
+    return np.stack(
+        [CubicSpline(x[ix], row[ix])(x) for row, ix in zip(e_hr, rows_idx)]
+    )
 
 
 def predict_gp(
@@ -235,22 +262,22 @@ def predict_gp(
 ) -> np.ndarray:
     """GP regression per curve on the observed points (the reference method)."""
     x = np.linspace(0.0, 1.0, e_hr.shape[-1])
-    x_lr = x[idx][:, None]
     if kernel_name == "rbf":
         base = RBF(length_scale=0.2, length_scale_bounds=(1e-3, 2.0))
     else:
         base = Matern(length_scale=0.2, length_scale_bounds=(1e-3, 2.0), nu=2.5)
     preds = []
+    rows_idx = _idx_rows(idx, e_hr.shape[0])
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", ConvergenceWarning)
-        for row in e_hr:
+        for row, ix in zip(e_hr, rows_idx):
             kernel = ConstantKernel(1.0, (1e-3, 1e3)) * base + WhiteKernel(
                 1e-8, (1e-12, 1e-4)
             )
             gp = GaussianProcessRegressor(
                 kernel=kernel, normalize_y=True, n_restarts_optimizer=2, random_state=0
             )
-            gp.fit(x_lr, row[idx])
+            gp.fit(x[ix][:, None], row[ix])
             preds.append(gp.predict(x[:, None]))
     return np.stack(preds)
 
@@ -261,12 +288,19 @@ def predict_gp(
 
 
 def build_conditioning(e_hr: np.ndarray, idx: np.ndarray) -> torch.Tensor:
-    """[B, 3, H]: cubic-spline interp, linear interp, distance-to-known-point."""
+    """[B, 3, H]: cubic-spline interp, linear interp, distance-to-known-point.
+
+    `idx` may be a shared [n] index set or per-curve [B, n] placements
+    (irregular sampling); the distance channel tells the network where
+    the observation gaps are in either case.
+    """
     spline = predict_cubic_spline(e_hr, idx)
     linear = predict_linear(e_hr, idx)
     x = np.linspace(0.0, 1.0, e_hr.shape[-1])
-    dist = np.min(np.abs(x[:, None] - x[idx][None, :]), axis=1)
-    dist = np.broadcast_to(dist, e_hr.shape)
+    rows_idx = _idx_rows(idx, e_hr.shape[0])
+    dist = np.stack(
+        [np.min(np.abs(x[:, None] - x[ix][None, :]), axis=1) for ix in rows_idx]
+    )
     cond = np.stack([spline, linear, dist], axis=1).astype(np.float32)
     return torch.from_numpy(cond)
 
