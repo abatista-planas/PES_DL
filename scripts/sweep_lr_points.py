@@ -43,8 +43,9 @@ from pes_1D.superres import (
 )
 
 HR_SIZE = 128
-N_TRAIN_PER_FAMILY = 1000
-N_TEST_PER_FAMILY = 200
+FAMILIES = ("lennard_jones", "morse", "buckingham_exp6", "extended_rydberg")
+N_TRAIN_PER_FAMILY = 500
+N_TEST_PER_FAMILY = 100
 N_SWEEP = [4, 6, 8, 10, 12, 14, 16]
 EPOCHS_SUPERVISED = 40
 EPOCHS_GAN = 25
@@ -57,9 +58,11 @@ def main(outdir: Path) -> None:
     torch.manual_seed(SEED)
     rng = np.random.default_rng(SEED)
 
-    print("Generating data ...")
-    train_hr = sample_dataset(rng, N_TRAIN_PER_FAMILY, HR_SIZE)
-    test_hr = sample_dataset(np.random.default_rng(SEED + 1), N_TEST_PER_FAMILY, HR_SIZE)
+    print(f"Generating data for families: {FAMILIES} ...")
+    train_hr, _ = sample_dataset(rng, N_TRAIN_PER_FAMILY, HR_SIZE, FAMILIES)
+    test_hr, test_fam = sample_dataset(
+        np.random.default_rng(SEED + 1), N_TEST_PER_FAMILY, HR_SIZE, FAMILIES
+    )
     o2_hr = sample_pes_curve(
         np.random.default_rng(SEED + 2), "reudenberg_o2", HR_SIZE,
         wall_factor=2.0, tail_factor=0.05,
@@ -119,14 +122,15 @@ def main(outdir: Path) -> None:
 
         for name, p in preds.items():
             e = rmse_per_curve(p, test_hr)
-            rows.append(
-                dict(
-                    n_lr=n_lr, model=name,
-                    rmse_mean=float(e.mean()), rmse_median=float(np.median(e)),
-                    rmse_p90=float(np.percentile(e, 90)),
-                    rmse_o2=float(rmse_per_curve(o2_preds[name], o2_hr)[0]),
-                )
+            row = dict(
+                n_lr=n_lr, model=name,
+                rmse_mean=float(e.mean()), rmse_median=float(np.median(e)),
+                rmse_p90=float(np.percentile(e, 90)),
+                rmse_o2=float(rmse_per_curve(o2_preds[name], o2_hr)[0]),
             )
+            for fam in FAMILIES:
+                row[f"rmse_{fam}"] = float(e[test_fam == fam].mean())
+            rows.append(row)
         print(f"  done in {time.time() - t0:.0f}s")
         for r in rows[-len(preds):]:
             print(
@@ -169,14 +173,24 @@ def main(outdir: Path) -> None:
     with open(outdir / "SUMMARY.md", "w") as f:
         f.write("# Sweep: high-res surface RMSE vs number of observed points\n\n")
         f.write(f"High-res grid: {HR_SIZE} points; energies normalized to [-1, 1].\n")
-        f.write(f"Train: {2 * N_TRAIN_PER_FAMILY} curves (LJ+Morse); ")
-        f.write(f"test: {2 * N_TEST_PER_FAMILY} curves.\n\n")
+        f.write(f"Families: {', '.join(FAMILIES)}.\n")
+        f.write(f"Train: {len(FAMILIES) * N_TRAIN_PER_FAMILY} curves; ")
+        f.write(f"test: {len(FAMILIES) * N_TEST_PER_FAMILY} curves.\n\n")
         f.write("## Mean RMSE, in-family test set\n\n")
         f.write(piv.to_markdown(floatfmt=".3e") + "\n\n")
         f.write("## RMSE, O2 Reudenberg curve (out-of-family)\n\n")
         f.write(piv_o2.to_markdown(floatfmt=".3e") + "\n\n")
+        for fam in FAMILIES:
+            piv_fam = df.pivot(index="n_lr", columns="model", values=f"rmse_{fam}")
+            f.write(f"## Mean RMSE, {fam} test curves\n\n")
+            f.write(piv_fam.to_markdown(floatfmt=".3e") + "\n\n")
         f.write("## GAN training health (tail averages)\n\n")
-        f.write(pd.DataFrame(gan_health).T.to_markdown(floatfmt=".3f") + "\n")
+        f.write(pd.DataFrame(gan_health).T.to_markdown(floatfmt=".3f") + "\n\n")
+        f.write(
+            "Note: D(real)=0 / D(fake)=1 'accuracy' with adv loss ~0.80 means the\n"
+            "discriminator outputs a constant p~0.45 for everything - the\n"
+            "label-smoothed equilibrium where fakes are indistinguishable from real.\n"
+        )
     print(f"\nWrote results to {outdir}")
 
 
