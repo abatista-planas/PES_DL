@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Reject commit messages that carry vendor/tooling attribution.
+# One-time activation per clone:  git config core.hooksPath .githooks
+set -euo pipefail
+
+msg_file="$1"
+
+# Forbidden: assistant/vendor names, auto-generated co-author trailers,
+# "generated with" notices, and session links.
+pattern='claude|anthropic|noreply@anthropic|co-authored-by:[[:space:]]*(claude|anthropic)|generated with|🤖|claude\.ai'
+
+if grep -iEq "$pattern" "$msg_file"; then
+    echo "commit-msg: message contains a forbidden attribution reference." >&2
+    echo "Remove vendor/assistant names, auto co-author trailers, and session links." >&2
+    exit 1
+fi
+exit 0
