@@ -20,6 +20,7 @@ the O2 curve is evaluated over 32 random placements.
 
 import copy
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -58,16 +59,37 @@ EPOCHS_SUPERVISED = 40
 EPOCHS_GAN = 25
 SEED = 7
 
+# Optional GPU-scale multiplier: set env PES_SCALE=N to grow the training set
+# and epochs N-fold (default 1 keeps parity with the committed CPU results).
+SCALE = int(os.environ.get("PES_SCALE", "1"))
+
+
+def resolve_device() -> str:
+    forced = os.environ.get("PES_DEVICE")
+    if forced:
+        return forced
+    return "cuda" if torch.cuda.is_available() else "cpu"
+
 
 def main(outdir: Path, placement: str = "uniform") -> None:
     outdir.mkdir(parents=True, exist_ok=True)
-    torch.set_num_threads(4)
+    device = resolve_device()
+    n_train_per_family = N_TRAIN_PER_FAMILY * SCALE
+    epochs_sup = EPOCHS_SUPERVISED * SCALE
+    epochs_gan = EPOCHS_GAN * SCALE
+    if device == "cpu":
+        torch.set_num_threads(os.cpu_count() or 4)
+    print(
+        f"Device: {device} | scale x{SCALE} "
+        f"(train {len(FAMILIES) * n_train_per_family}/run, "
+        f"epochs sup={epochs_sup} gan={epochs_gan})"
+    )
     torch.manual_seed(SEED)
     rng = np.random.default_rng(SEED)
     idx_rng = np.random.default_rng(SEED + 10)
 
     print(f"Generating data for families: {FAMILIES} ...")
-    train_hr, _ = sample_dataset(rng, N_TRAIN_PER_FAMILY, HR_SIZE, FAMILIES)
+    train_hr, _ = sample_dataset(rng, n_train_per_family, HR_SIZE, FAMILIES)
     test_hr, test_fam = sample_dataset(
         np.random.default_rng(SEED + 1), N_TEST_PER_FAMILY, HR_SIZE, FAMILIES
     )
@@ -114,7 +136,7 @@ def main(outdir: Path, placement: str = "uniform") -> None:
         gen_sup = RefineGenerator()
         train_supervised(
             gen_sup, cond_train, target_train,
-            epochs=EPOCHS_SUPERVISED, seed=SEED, verbose=True,
+            epochs=epochs_sup, seed=SEED, verbose=True, device=device,
         )
         preds["cnn_supervised"] = predict_nn(gen_sup, cond_test)
         o2_preds["cnn_supervised"] = predict_nn(gen_sup, cond_o2)
@@ -123,7 +145,7 @@ def main(outdir: Path, placement: str = "uniform") -> None:
         disc = ConditionalDiscriminator()
         log = train_gan(
             gen_gan, disc, cond_train, target_train,
-            epochs=EPOCHS_GAN, seed=SEED, verbose=True,
+            epochs=epochs_gan, seed=SEED, verbose=True, device=device,
         )
         preds["gan"] = predict_nn(gen_gan, cond_test)
         o2_preds["gan"] = predict_nn(gen_gan, cond_o2)
@@ -190,6 +212,7 @@ def main(outdir: Path, placement: str = "uniform") -> None:
         f.write("# Sweep: high-res surface RMSE vs number of observed points\n\n")
         f.write(f"High-res grid: {HR_SIZE} points; energies normalized to [-1, 1].\n")
         f.write(f"Point placement: {placement}.\n")
+        f.write(f"Device: {device}; scale x{SCALE}.\n")
         f.write(f"Families: {', '.join(FAMILIES)}.\n")
         f.write(f"Train: {len(FAMILIES) * N_TRAIN_PER_FAMILY} curves; ")
         f.write(f"test: {len(FAMILIES) * N_TEST_PER_FAMILY} curves.\n\n")

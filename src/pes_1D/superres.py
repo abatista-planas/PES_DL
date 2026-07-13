@@ -402,8 +402,12 @@ def train_supervised(
     lr: float = 1e-3,
     seed: int = 0,
     verbose: bool = False,
+    device: str = "cpu",
 ) -> list[float]:
     """Plain MSE super-resolution training (the non-GAN neural baseline)."""
+    gen = gen.to(device)
+    cond = cond.to(device)
+    target = target.to(device)
     opt = torch.optim.Adam(gen.parameters(), lr=lr)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=epochs)
     g_cpu = torch.Generator().manual_seed(seed)
@@ -412,6 +416,7 @@ def train_supervised(
     for epoch in range(epochs):
         epoch_loss, n_batches = 0.0, 0
         for sel in _batches(cond.shape[0], batch_size, g_cpu):
+            sel = sel.to(device)
             fake = gen(cond[sel])
             loss = F.mse_loss(fake, target[sel])
             opt.zero_grad()
@@ -438,6 +443,7 @@ def train_gan(
     adv_weight: float = 1e-2,
     seed: int = 0,
     verbose: bool = False,
+    device: str = "cpu",
 ) -> GanLog:
     """Adversarial fine-tuning: reconstruction-dominated, D updated every step.
 
@@ -445,6 +451,10 @@ def train_gan(
     term is a small fraction of the generator loss, and the fake curve fed to
     the discriminator is the live generator output — gradients flow.
     """
+    gen = gen.to(device)
+    disc = disc.to(device)
+    cond = cond.to(device)
+    target = target.to(device)
     opt_g = torch.optim.Adam(gen.parameters(), lr=lr_g, betas=(0.5, 0.999))
     opt_d = torch.optim.Adam(disc.parameters(), lr=lr_d, betas=(0.5, 0.999))
     bce = nn.BCEWithLogitsLoss()
@@ -455,10 +465,11 @@ def train_gan(
     disc.train()
     for epoch in range(epochs):
         for sel in _batches(cond.shape[0], batch_size, g_cpu):
+            sel = sel.to(device)
             c, real = cond[sel], target[sel]
             bs = c.shape[0]
-            ones = torch.ones(bs, 1)
-            zeros = torch.zeros(bs, 1)
+            ones = torch.ones(bs, 1, device=device)
+            zeros = torch.zeros(bs, 1, device=device)
 
             fake = gen(c)
 
@@ -497,7 +508,8 @@ def train_gan(
 @torch.no_grad()
 def predict_nn(gen: RefineGenerator, cond: torch.Tensor) -> np.ndarray:
     gen.eval()
-    return gen(cond).squeeze(1).cpu().numpy()
+    device = next(gen.parameters()).device
+    return gen(cond.to(device)).squeeze(1).cpu().numpy()
 
 
 def rmse_per_curve(pred: np.ndarray, truth: np.ndarray) -> np.ndarray:
