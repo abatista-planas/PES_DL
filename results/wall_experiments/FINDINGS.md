@@ -115,3 +115,40 @@ Findings:
 - The neural model's niche is low N (4-8) and regular grids.
 - "Hua Guo model" here = the coordinate-warp (MLR reduced variable) model. The
   MLRNet analytic-parameter decoder is a separate, still-unbuilt candidate.
+
+---
+
+# Follow-up: MLRNet-style physics decoder (negative result)
+
+`scripts/mlrnet_physics_decoder.py` implements a physics-structured decoder: the
+encoder predicts the parameters of a generalized-Morse template
+`g(x)=exp(-b1(x-x0)) - lam*exp(-b2(x-x0))`, min-max normalized to [-1,1], so the
+reconstruction is a ~4-parameter physics fit. Regular sampling, N=4..16.
+
+| N  | CNN+warp | MLRNet | MLR wall | MLR min |
+|---:|---------:|-------:|---------:|--------:|
+|  4 | 4.57e-2 | 5.92e-2 | 1.24e-1 | 1.03e-2 |
+|  6 | 2.09e-2 | 6.07e-2 | 1.26e-1 | 1.07e-2 |
+|  8 | 6.12e-3 | 4.98e-2 | 9.11e-2 | 4.85e-3 |
+| 10 | 2.31e-3 | 4.73e-2 | 8.59e-2 | 4.14e-3 |
+| 12 | 1.88e-3 | 4.01e-2 | 7.27e-2 | 2.62e-3 |
+| 14 | 1.81e-3 | 4.61e-2 | 7.85e-2 | 3.66e-3 |
+| 16 | 1.99e-3 | 3.52e-2 | 6.26e-2 | 2.25e-3 |
+
+Findings:
+- The pure physics template is ~20x worse than CNN+warp and worse than a cubic
+  spline past N=8; it barely improves with N (plateaus ~4e-2).
+- The error splits sharply: the well minimum is respectable (~2-4e-3), but the
+  wall is catastrophic (0.06-0.13). A single-exponential wall cannot match the
+  diverse LJ (1/r^12) / Buckingham (exp-6) / Rydberg walls at once -> template
+  misspecification sets a bias floor that data cannot lower.
+- This is only the "physics model" half of MLRNet; the real method adds an NN
+  correction. Our CNN+warp already embodies that structure (physics-consistent
+  base = spline in the warped coordinate, plus a learned residual), which is why
+  it wins.
+
+Conclusion: for MULTI-family super-resolution the physics belongs in the base and
+the coordinate (warp + spline base + residual), not in a rigid full-curve template.
+A pure analytic decoder would only pay off when fitting a single molecule with its
+correct functional form. Recommended model for our setting: CNN+MLP + coordinate
+warp.
