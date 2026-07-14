@@ -152,3 +152,65 @@ the coordinate (warp + spline base + residual), not in a rigid full-curve templa
 A pure analytic decoder would only pay off when fitting a single molecule with its
 correct functional form. Recommended model for our setting: CNN+MLP + coordinate
 warp.
+
+---
+
+# Follow-up: exploit the PES shape manifold (gappy-POD) — the big lever
+
+Insight: the adversary is useless because the conditional distribution is near-delta
+(one valid curve per set of points). The way to exploit that is to constrain the
+reconstruction to the low-dimensional manifold of valid PES shapes, not adversarial
+realism. `scripts/shape_manifold_recon.py` tests gappy-POD: learn mean + top-K PCA
+modes from the training curves, then reconstruct each curve as the subspace element
+that best fits the N observed points (ridge least squares).
+
+The 4-family PES curves are astonishingly low-dimensional:
+  2 modes -> 94.5% variance, 4 modes -> 99.89%, 6 modes -> 100.00%.
+
+## In-family, continuous RMSE (regular uniform sampling)
+
+| N | spline | GP | CNN+warp | gappy-POD (best K) |
+|--:|-------:|---:|---------:|-------------------:|
+| 4 | 2.28e-1 | 4.71e-1 | 4.57e-2 | 5.17e-2 (K2) |
+| 6 | 6.48e-2 | 2.03e-1 | 2.09e-2 | 8.29e-3 (K5) |
+| 8 | 2.56e-2 | 9.24e-2 | 6.12e-3 | 1.54e-3 (K6) |
+|10 | 1.18e-2 | 3.91e-2 | 2.31e-3 | 6.04e-4 (K6) |
+|12 | 6.48e-3 | 1.53e-2 | 1.88e-3 | 1.19e-4 (K8) |
+|14 | 3.79e-3 | 5.06e-3 | 1.81e-3 | 2.36e-5 (K8) |
+|16 | 1.99e-3 | 1.33e-3 | 1.99e-3 | 1.08e-5 (K8) |
+
+Gappy-POD beats every free-form method for N>=6 (4x at N=8, 16-180x at N>=12),
+reaching machine precision: ~8 points over-determine an ~8-dimensional object.
+Only at N=4 does the neural prior edge it (only K=2 modes are affordable).
+K must be chosen <= ~N-2 (larger K overfits the points and wiggles elsewhere);
+a plain rule K=min(N-2,6) or cross-validation recovers most of the oracle gain.
+
+## Out-of-family (O2), K=min(N-2,6)
+
+| N | O2 gappy-POD |
+|--:|-------------:|
+| 6 | 2.56e-2 |
+| 8 | 1.21e-2 |
+|10 | 3.80e-3 |
+|12 | 2.07e-3 |
+|14 | 1.45e-3 |
+|16 | 1.12e-3 |
+
+On O2 gappy-POD plateaus at ~1e-3 and cannot improve with N: O2 has shape
+components outside the training subspace, a bias floor a linear subspace cannot
+cross. There it is worse than the neural model, which generalizes out-of-family.
+
+## Synthesis
+
+- IN-distribution, the shape manifold is by far the biggest lever (orders of
+  magnitude over free-form models), and it is cheap (SVD + least squares).
+- OUT-of-distribution it is brittle (subspace bias floor).
+- The winning design is therefore a HYBRID: shape-manifold reconstruction as the
+  base (captures the bulk in a few coefficients) + a neural residual for
+  out-of-manifold deviations, and/or a richer/nonlinear manifold (autoencoder)
+  and more training families to lower the OOD floor. This mirrors the recurring
+  "structured base + learned residual" pattern.
+- Neural model's niche narrows to: N=4 (extreme sparse) and out-of-family curves.
+
+Next: gappy-POD base + neural residual hybrid; nonlinear (autoencoder) manifold;
+CV-based K selection; enlarge the training family set to broaden the subspace.
