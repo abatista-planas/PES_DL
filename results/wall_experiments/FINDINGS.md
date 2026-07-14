@@ -60,3 +60,58 @@ Ideas tested:
   N are the natural next sweeps.
 
 Exploratory only — not merged into the main branch.
+
+---
+
+# Follow-up: fixed points (no per-curve control), warp across N
+
+We cannot control per-curve placement, so the usable lever is the coordinate warp
+applied to the given points. `scripts/warp_vs_sampling_sweep.py` sweeps N=4..16 and
+compares spline, GP, CNN+MLP (baseline) and CNN+MLP+warp (the MLR / Hua Guo model)
+under two FIXED grids: regular (uniform-x) and an optimized wall-dense grid
+(x_i=u_i^p*, p* found by search = 2.0, same grid for every curve).
+
+## Regular (uniform-x, fixed) — the realistic case
+
+| N  | spline | GP | CNN base | CNN+warp | warp vs base |
+|---:|-------:|---:|---------:|---------:|-------------:|
+|  4 | 2.29e-1 | 4.44e-1 | 5.56e-2 | 4.36e-2 | -22% |
+|  6 | 6.55e-2 | 2.02e-1 | 2.29e-2 | 2.09e-2 |  -9% |
+|  8 | 2.62e-2 | 9.29e-2 | 7.43e-3 | 6.29e-3 | -15% |
+| 10 | 1.21e-2 | 3.92e-2 | 4.84e-3 | 2.61e-3 | -46% |
+| 12 | 6.24e-3 | 1.48e-2 | 4.30e-3 | 2.03e-3 | -53% |
+| 14 | 3.49e-3 | 4.96e-3 | 3.06e-3 | 1.68e-3 | -45% |
+| 16 | 2.08e-3 | 1.39e-3 | 2.14e-3 | 1.56e-3 | -27% |
+
+The warp improves the model on the SAME fixed points at every N (biggest at mid N,
+-45..-53%), and beats spline/GP at every N except N=16 (GP edges it).
+
+## Optimized grid (x_i=u_i^2.0, fixed for all curves)
+
+| N  | spline | GP | CNN+warp |
+|---:|-------:|---:|---------:|
+|  4 | 6.67e-1 | 6.62e-1 | 2.50e-2 |
+|  6 | 1.26e-2 | 5.12e-1 | 6.96e-3 |
+|  8 | 1.85e-3 | 2.47e-1 | 1.56e-3 |
+| 10 | 5.38e-4 | 1.06e-1 | 5.30e-4 |
+| 12 | 2.13e-4 | 4.74e-2 | 3.73e-4 |
+| 14 | 1.01e-4 | 2.35e-2 | 5.34e-4 |
+| 16 | 5.42e-5 | 1.12e-2 | 3.68e-4 |
+
+Findings:
+- A wall-dense grid helps every method a lot (CNN+warp -75..-82% vs regular).
+- The cubic spline becomes the BEST method at N>=12 (5-7x better than the neural
+  model at N=14,16): once the wall is sampled, spline interpolation of a smooth
+  curve races to numerical precision while the neural model hits its decoder floor.
+  If you can choose the grid, a spline on it beats the net past N~12.
+- GP is destroyed by the non-uniform grid (clustered wall points, sparse outer);
+  GP only works on ~uniform grids.
+- At low N (4-6) the neural model dominates on any grid; classical methods cannot
+  reconstruct a few wall-clustered points.
+
+## Takeaways
+
+- Fixed uniform points (our constraint): use CNN+MLP+warp (the Hua Guo MLR model).
+- The neural model's niche is low N (4-8) and regular grids.
+- "Hua Guo model" here = the coordinate-warp (MLR reduced variable) model. The
+  MLRNet analytic-parameter decoder is a separate, still-unbuilt candidate.
