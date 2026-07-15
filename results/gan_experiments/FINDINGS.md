@@ -126,3 +126,45 @@ Practical payoff: the sparse POD residual (0.92 AUROC from N=8) flags off-distri
 uncertainty lacked. The shape manifold gives us reconstruction AND trustworthy OOD
 detection; recommend it as the outlier detector. The discriminator works but is
 dominated.
+
+---
+
+# Richer priors do NOT lower the O2 floor (negative result)
+
+`scripts/richer_prior.py`. Tested whether a richer prior lowers the out-of-family
+(O2) floor of linear gappy-POD: physics-augmented POD (PCA modes + Morse/power
+functions) and a gappy AUTOENCODER (nonlinear manifold, the literature's gappy-POD-AE).
+
+| N | method | in-family | O2 |
+|--:|--------|----------:|---:|
+| 8 | linear POD K=6        | 1.5e-3 | 1.18e-2 |
+| 8 | physics-augmented POD | 1.30e-2| 1.13e-2 |
+| 8 | gappy autoencoder     | 1.06e-2| 1.24e-2 |
+|12 | linear POD K=6        | 3.4e-4 | 2.04e-3 |
+|12 | physics-augmented POD | 2.41e-3| 2.56e-3 |
+|12 | gappy autoencoder     | 3.55e-3| 6.39e-3 |
+|16 | linear POD K=6        | 1.7e-4 | 1.10e-3 |
+|16 | physics-augmented POD | 8.6e-4 | 1.03e-3 |
+|16 | gappy autoencoder     | 2.94e-3| 5.26e-3 |
+
+AE full-curve fidelity (encode/decode of the TRUE curve): in-family 2.2e-3, O2 4.5e-3.
+
+Findings:
+- Richer manifold priors HURT. Both are worse in-family and neither lowers the O2
+  floor. The nonlinear AE is worst everywhere.
+- Reason: the normalized, aligned PES curves genuinely live on a LINEAR ~6-dim
+  subspace (6 modes = 100% variance). Linear PCA is therefore EXACT in-family; a
+  nonlinear AE can only approximate it (lossy, ~2e-3 floor). And the AE's curved
+  manifold is FARTHER from O2 (full-recon 4.5e-3) than the flat linear subspace
+  (gappy O2 ~1.1e-3). Linear POD is already near-optimal.
+- So the O2 floor is NOT a prior-richness problem. It is genuine OUT-OF-DISTRIBUTION:
+  O2's shape is outside the span of ANY model built from the 4 families (linear or
+  nonlinear). More manifold expressiveness cannot help.
+
+The real levers for the O2 floor (not tested here, recommended):
+- COVERAGE: add training FAMILIES that span O2-like shapes (more data diversity, not
+  more observed points). Widens the subspace where it matters.
+- NEURAL OOD-fallback: the CNN+warp generalizes out-of-family better than POD at low
+  N (O2 ~2.6e-3 vs POD 1.2e-2 at N=8). Gate it with the POD residual (the OOD
+  detector): use POD when the residual is small (in-family, machine precision), fall
+  back to the net when the residual is large (O2). This is the residual-gated hybrid.
