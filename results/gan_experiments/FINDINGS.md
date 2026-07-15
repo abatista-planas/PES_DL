@@ -90,3 +90,39 @@ gives an unreliable adversarial gradient. The prior must be injected CONSTRUCTIV
 Rule: for guiding reconstruction, a GENERATIVE/projection prior beats a
 DISCRIMINATIVE (classifier) prior. Constrain to the manifold; do not penalize with a
 classifier.
+
+---
+
+# Outlier / OOD detection: discriminator vs shape-manifold residual (a legitimate use)
+
+`scripts/outlier_detection.py`. Detection only READS a score on a given input (no
+optimization against D), so the adversarial-gaming failure does not apply -- this is
+a legitimate use of the discriminator. AUROC separating NORMAL (in-family) from
+OUTLIERS (O2 out-of-family; corrupted-shape in-family):
+
+| detector | O2 | corrupted |
+|---|---:|---:|
+| discriminator score D(x)        | 0.679 | 0.728 |
+| POD residual (full curve, K=6)  | 0.993 | 1.000 |
+| POD residual (sparse N=8, K=6)  | 0.923 | 0.956 |
+
+Findings:
+- YES, the discriminator works for outlier detection (0.68-0.73 AUROC, clearly above
+  chance, and un-gameable since we only read the score). First genuinely valid use of
+  the discriminator in this project.
+- BUT the shape-manifold (POD) residual dominates: near-perfect on full curves
+  (0.99/1.00) and excellent even from just 8 observed points (0.92/0.96).
+- Reason: an outlier here IS a curve far from the PES shape manifold. The POD residual
+  measures exactly that distance; the discriminator is only an indirect, noisy proxy
+  for it (same fuzzy-boundary weakness that capped it at ~70% as a classifier).
+
+Unifying insight: everything reduces to the shape manifold.
+- Reconstruction  = PROJECT onto it (gappy-POD)  -> orders-of-magnitude accuracy.
+- Outlier/OOD     = DISTANCE from it (POD residual) -> near-perfect AUROC, even sparse.
+The discriminator is a weak proxy for the manifold in both tasks.
+
+Practical payoff: the sparse POD residual (0.92 AUROC from N=8) flags off-distribution
+/ unreliable inputs at reconstruction time -- the exact OOD-awareness the GAN's
+uncertainty lacked. The shape manifold gives us reconstruction AND trustworthy OOD
+detection; recommend it as the outlier detector. The discriminator works but is
+dominated.
