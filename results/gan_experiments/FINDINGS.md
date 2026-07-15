@@ -168,3 +168,45 @@ The real levers for the O2 floor (not tested here, recommended):
   N (O2 ~2.6e-3 vs POD 1.2e-2 at N=8). Gate it with the POD residual (the OOD
   detector): use POD when the residual is small (in-family, machine precision), fall
   back to the net when the residual is large (O2). This is the residual-gated hybrid.
+
+---
+
+# Residual-gated hybrid: gappy-POD + CNN+warp fallback (the working endpoint)
+
+`scripts/gated_hybrid.py`. Reconstruct with gappy-POD; use its sparse fit residual
+as an OOD flag; if the residual exceeds a threshold (98th percentile of in-family
+TRAIN residuals -- calibrated WITHOUT touching the test set) fall back to the
+CNN+warp neural reconstruction. Fully automatic.
+
+| N | set | POD | neural | HYBRID | oracle | routed->neural |
+|--:|-----|----:|-------:|-------:|-------:|---------------:|
+| 8 | in-family | 1.58e-3 | 4.33e-3 | 1.81e-3 | 1.52e-3 |  5% |
+| 8 | O2        | 1.34e-2 | 3.53e-3 | 4.65e-3 | 3.43e-3 | 70% |
+|12 | in-family | 3.54e-4 | 1.73e-3 | 4.06e-4 | 3.54e-4 |  3% |
+|12 | O2        | 2.20e-3 | 1.84e-3 | 1.84e-3 | 1.44e-3 |100% |
+|16 | in-family | 1.76e-4 | 1.26e-3 | 2.15e-4 | 1.76e-4 |  3% |
+|16 | O2        | 1.19e-3 | 1.29e-3 | 1.26e-3 | 8.76e-4 | 97% |
+
+What it delivers, automatically, from the same sparse points:
+- In-family: near machine precision (POD), with only a 3-5% false-flag tax.
+- OOD detection: the residual flags O2 (70-100% routed to the neural fallback).
+- OOD reconstruction: 2.9x better than POD-alone at low N (O2 N=8: 1.34e-2 -> 4.65e-3)
+  by falling back to the net, which generalizes off-manifold. Approaches the oracle.
+- The gate threshold is a tunable knob (90th pct -> better O2 but higher in-family
+  tax; 98th -> near-zero in-family tax, slightly more O2 missed).
+
+Honest limits: the oracle (per-curve best) is still a bit lower -- imperfect gating
+misroutes a few curves; at high N POD is marginally better than the net even on O2,
+so routing there costs a hair. But the hybrid captures the main win: it removes
+POD's catastrophic low-N OOD failure while preserving in-family precision.
+
+# Overall conclusion of the GAN/prior thread
+- The adversary is inert for reconstruction (near-delta distribution); a correct GAN
+  trains but doesn't beat MSE and its uncertainty is OOD-blind.
+- A discriminator penalty is worse (adversarial-gradient gaming), a better D does not
+  fix it, and richer manifold priors do not lower the OOD floor (curves are a genuine
+  linear ~6-dim subspace, so linear POD is already near-optimal).
+- Everything reduces to the shape manifold: PROJECT onto it (gappy-POD) for
+  reconstruction, DISTANCE from it (POD residual) for OOD detection, and a neural
+  fallback for off-manifold curves. That residual-gated hybrid -- no GAN -- is the
+  recommended system.
