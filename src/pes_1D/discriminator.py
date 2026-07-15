@@ -285,7 +285,7 @@ class SRDiscriminator(Discriminator):
             model_paramaters (_type_): "in_features"
 
         """
-        super(CnnDiscriminator, self).__init__()
+        super(SRDiscriminator, self).__init__()
         self.params = model_paramaters
         sz = self.params["grid_size"]
         self.layers["cv_0"] = nn.Conv1d(
