@@ -1,17 +1,21 @@
 #!/usr/bin/env bash
-# Reject commit messages that carry vendor/tooling attribution.
+# Reject commit messages that carry automated tooling attribution.
 # One-time activation per clone:  git config core.hooksPath .githooks
 set -euo pipefail
 
 msg_file="$1"
 
-# Forbidden: assistant/vendor names, auto-generated co-author trailers,
-# "generated with" notices, and session links.
-pattern='claude|anthropic|noreply@anthropic|co-authored-by:[[:space:]]*(claude|anthropic)|generated with|🤖|claude\.ai'
-
-if grep -iEq "$pattern" "$msg_file"; then
-    echo "commit-msg: message contains a forbidden attribution reference." >&2
-    echo "Remove vendor/assistant names, auto co-author trailers, and session links." >&2
+if grep -iEq 'generated with|/share/[a-f0-9-]{8,}' "$msg_file"; then
+    echo "commit-msg: message contains an automated attribution notice." >&2
     exit 1
 fi
+
+# Co-author trailers pointing at a service noreply address. GitHub's own
+# users.noreply.github.com is allowed, since people do commit under it.
+if grep -iE '^co-authored-by:.*noreply@' "$msg_file" \
+        | grep -qivE 'users\.noreply\.github\.com'; then
+    echo "commit-msg: remove the auto-generated co-author trailer." >&2
+    exit 1
+fi
+
 exit 0

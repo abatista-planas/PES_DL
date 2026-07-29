@@ -88,7 +88,3 @@ Train: 2000 curves; test: 400 curves.
 | 12 |             0.000 |             1.000 |        0.798 |          0.000 |
 | 14 |             0.000 |             1.000 |        0.798 |          0.000 |
 | 16 |             0.000 |             1.000 |        0.799 |          0.000 |
-
-Note: D(real)=0 / D(fake)=1 'accuracy' with adv loss ~0.80 means the
-discriminator outputs a constant p~0.45 for everything - the
-label-smoothed equilibrium where fakes are indistinguishable from real.
