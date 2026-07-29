@@ -112,13 +112,13 @@ for p in (1.0, 1.5, 2.0, 2.5, 3.0):
 print(f"  -> optimized grid exponent p* = {best_p}\n", flush=True)
 
 N_SWEEP = [4, 6, 8, 10, 12, 14, 16]
-print("=== REGULAR sampling (uniform-x, FIXED) — continuous RMSE ===", flush=True)
+print("=== regular sampling (uniform-x, fixed): continuous RMSE ===", flush=True)
 print(f"{'N':>3} | {'spline':>9} | {'GP':>9} | {'CNN base':>9} | {'CNN+warp':>9} | warp min")
 for N in N_SWEEP:
     cl = run_classical(N, 1.0); b = run_nn(N, 1.0, 1.0); w = run_nn(N, 1.0, 2.0)
     print(f"{N:>3} | {cl['spline']:.3e} | {cl['GP']:.3e} | {b['full']:.3e} | {w['full']:.3e} | {w['min']:.2e}", flush=True)
 
-print(f"\n=== OPTIMIZED grid (x_i=u_i^{best_p}, FIXED same for all curves) — continuous RMSE ===", flush=True)
+print(f"\n=== optimized grid (x_i=u_i^{best_p}, same for all curves): continuous RMSE ===", flush=True)
 print(f"{'N':>3} | {'spline':>9} | {'GP':>9} | {'CNN+warp':>9} | warp wall | warp min")
 for N in N_SWEEP:
     cl = run_classical(N, best_p); w = run_nn(N, best_p, best_p)

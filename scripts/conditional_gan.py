@@ -11,9 +11,9 @@ DISTRIBUTION of plausible curves -> a calibrated uncertainty band. So:
   L_G    : adversarial + data-consistency at observed points + weak mean anchor +
            MSGAN mode-seeking (so z is used, not ignored).
 
-Evaluated on: point RMSE (of the sample mean), and — the real test — uncertainty
-CALIBRATION (does the true curve fall in the predicted band at the right rate?),
-band-vs-error correlation, and whether uncertainty grows out-of-family (O2).
+Evaluated on point RMSE (of the sample mean), uncertainty calibration (does the
+true curve fall in the predicted band at the right rate?), band-vs-error
+correlation, and whether uncertainty grows out-of-family (O2).
 """
 import numpy as np
 import torch
