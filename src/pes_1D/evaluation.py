@@ -1,25 +1,21 @@
-"""Physically-uniform error metrics and observable (bound-state) validation for 1D PES.
+"""Error metrics and bound-state validation for 1D PES.
 
-The problem this solves
------------------------
-A 1D interaction potential ``V(R)`` spans a huge dynamic range: a repulsive wall
-at ~+1e4..1e5 cm^-1, an attractive well at ~-1e1..1e4 cm^-1, and an asymptote
-that decays to 0. A plain energy RMSE is dominated by the wall and blind to the
-asymptote, so "100 cm^-1 of error" is negligible on the wall but ruins the PES
-near the asymptote. The tools here measure error by *physical significance*
-instead:
+``V(R)`` spans a wide dynamic range (repulsive wall ~+1e4..1e5 cm^-1, well
+~-1e1..1e4 cm^-1, asymptote decaying to 0), so a plain energy RMSE is dominated
+by the wall and blind to the asymptote. These metrics weight error by physical
+significance instead:
 
-  1. ``headline_metric``  -- a tolerance-normalized, scale-free error (the headline
-                             number that matches the wall-vs-asymptote intuition).
-  2. ``asinh_target``     -- the matching training-target transform + loss geometry.
-  3. ``banded_rmse``      -- honest per-region absolute RMSE in cm^-1.
-  4. ``sinc_dvr_levels`` / ``observable_error`` -- the gold standard: error in the
-                             bound-state spectrum, validated against the analytic
-                             Morse spectrum (``morse_spectrum``).
-  5. ``descriptors`` / ``shape_checks`` -- the quantitative "does it look like a PES".
+  ``headline_metric``   tolerance-normalized, scale-free error
+  ``asinh_target``      matching training-target transform and loss geometry
+  ``banded_rmse``       per-region absolute RMSE in cm^-1
+  ``sinc_dvr_levels`` / ``observable_error``
+                        error in the bound-state spectrum, checked against the
+                        analytic Morse spectrum (``morse_spectrum``)
+  ``descriptors`` / ``shape_checks``
+                        quantitative PES shape checks
 
-Units everywhere: R in Angstrom, energy in cm^-1, reduced mass mu in amu,
-a in Angstrom^-1. Potentials are referenced so the asymptote is 0.
+Units: R in Angstrom, energy in cm^-1, reduced mass mu in amu, a in Angstrom^-1.
+Potentials are referenced so the asymptote is 0.
 """
 
 from __future__ import annotations
