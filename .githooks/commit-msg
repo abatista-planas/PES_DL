@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Reject commit messages that carry automated tooling attribution.
+# One-time activation per clone:  git config core.hooksPath .githooks
+set -euo pipefail
+
+msg_file="$1"
+
+if grep -iEq 'generated with|/share/[a-f0-9-]{8,}' "$msg_file"; then
+    echo "commit-msg: message contains an automated attribution notice." >&2
+    exit 1
+fi
+
+# Co-author trailers pointing at a service noreply address. GitHub's own
+# users.noreply.github.com is allowed, since people do commit under it.
+if grep -iE '^co-authored-by:.*noreply@' "$msg_file" \
+        | grep -qivE 'users\.noreply\.github\.com'; then
+    echo "commit-msg: remove the auto-generated co-author trailer." >&2
+    exit 1
+fi
+
+exit 0
