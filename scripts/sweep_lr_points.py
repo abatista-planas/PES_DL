@@ -11,8 +11,8 @@ to check that the learned prior generalizes beyond LJ/Morse.
 
 Usage:  python scripts/sweep_lr_points.py [outdir] [placement]
 
-placement: "uniform" (default) — evenly spaced observed points;
-"irregular" — per-curve random placements (endpoints kept, interior
+placement: "uniform" (default) for evenly spaced observed points, or
+"irregular" for per-curve random placements (endpoints kept, interior
 points drawn without replacement, so clusters and gaps occur). In
 irregular mode the networks train on per-curve random placements and
 the O2 curve is evaluated over 32 random placements.
@@ -225,12 +225,7 @@ def main(outdir: Path, placement: str = "uniform") -> None:
             f.write(f"## Mean RMSE, {fam} test curves\n\n")
             f.write(piv_fam.to_markdown(floatfmt=".3e") + "\n\n")
         f.write("## GAN training health (tail averages)\n\n")
-        f.write(pd.DataFrame(gan_health).T.to_markdown(floatfmt=".3f") + "\n\n")
-        f.write(
-            "Note: D(real)=0 / D(fake)=1 'accuracy' with adv loss ~0.80 means the\n"
-            "discriminator outputs a constant p~0.45 for everything - the\n"
-            "label-smoothed equilibrium where fakes are indistinguishable from real.\n"
-        )
+        f.write(pd.DataFrame(gan_health).T.to_markdown(floatfmt=".3f") + "\n")
     print(f"\nWrote results to {outdir}")
 
 

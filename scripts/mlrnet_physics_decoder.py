@@ -137,7 +137,7 @@ def classical(N):
         gp.append(np.sqrt(np.mean((g.predict(xe[:, None])-yv)**2)))
     return float(np.mean(sp)), float(np.mean(gp))
 
-print("=== REGULAR sampling — continuous RMSE (adds MLRNet physics decoder) ===", flush=True)
+print("=== regular sampling: continuous RMSE (adds MLRNet physics decoder) ===", flush=True)
 print(f"{'N':>3} | {'spline':>9} | {'GP':>9} | {'CNN base':>9} | {'CNN+warp':>9} | {'MLRNet':>9} | MLR wall  MLR min")
 for N in [4, 6, 8, 10, 12, 14, 16]:
     sp, gp = classical(N); b = run_coord(N, 1.0); w = run_coord(N, 2.0); m = run_mlrnet(N)

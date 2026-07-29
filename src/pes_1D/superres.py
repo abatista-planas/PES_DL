@@ -1,23 +1,14 @@
-"""Fixed 1D PES super-resolution: data generation, models, training, baselines.
+"""1D PES super-resolution: data generation, models, training, baselines.
 
-This module replaces the broken GAN pipeline spread across ``gan*.py``.
-Fixes relative to that code:
+The discriminator is conditional: it sees the low-resolution observation (as
+spline/linear interpolation channels) next to the candidate high-resolution
+curve, so "real vs fake" means "consistent with these observed points" rather
+than just "PES-shaped".
 
-1.  Everything stays in the autograd graph (no ``.detach().cpu().numpy()``
-    round-trips between the generator and the discriminator), so the
-    adversarial gradient actually reaches the generator.
-2.  The discriminator is *conditional*: it sees the low-resolution
-    observation (as spline/linear interpolation channels) next to the
-    candidate high-resolution curve.  "Real vs fake" therefore means
-    "consistent with these observed points", not merely "PES-shaped".
-3.  SRGAN-style objective: a dominant pointwise reconstruction loss plus a
-    small adversarial term, with the discriminator updated every step —
-    no ``loss_adv < 1e-3`` gating and no 1e-4 dead adversarial weight.
-4.  The generator interpolates first (cubic baseline) and refines with a
-    dilated residual CNN: no ConvTranspose checkerboard artifacts and no
-    BatchNorm (both known failure modes for super-resolution generators).
-5.  No ``1/(derivative + 1e-10)`` channel, which blows up at the well
-    minimum and gave the discriminator trivial, non-informative tells.
+Training uses an SRGAN-style objective, a dominant pointwise reconstruction
+loss plus a small adversarial term, with the discriminator updated every step.
+The generator interpolates first (cubic baseline) and refines with a dilated
+residual CNN, avoiding ConvTranspose checkerboard artifacts and BatchNorm.
 """
 
 import warnings
@@ -220,7 +211,7 @@ def random_lr_indices(
 ) -> np.ndarray:
     """Per-curve irregular placements [n_curves, n_lr]: endpoints kept,
     interior points drawn uniformly without replacement (no minimum
-    spacing, so clusters and gaps occur — the realistic stress case)."""
+    spacing, so clusters and gaps occur, the realistic stress case)."""
     out = np.empty((n_curves, n_lr), dtype=int)
     for i in range(n_curves):
         interior = rng.choice(np.arange(1, hr_size - 1), size=n_lr - 2, replace=False)
@@ -348,9 +339,9 @@ class ConditionalDiscriminator(nn.Module):
     """Judges (candidate high-res curve, low-res observation) pairs.
 
     The candidate is concatenated with the conditioning channels, so the
-    discriminator can penalize curves inconsistent with the observed points
-    — the piece that was structurally missing before.  Spectral norm keeps
-    its Lipschitz constant bounded so its gradients stay informative.
+    discriminator can penalize curves inconsistent with the observed points.
+    Spectral norm keeps its Lipschitz constant bounded so its gradients stay
+    informative.
     """
 
     def __init__(self, channels: int = 32):
@@ -449,7 +440,7 @@ def train_gan(
 
     Both players update on every batch (no accuracy gating), the adversarial
     term is a small fraction of the generator loss, and the fake curve fed to
-    the discriminator is the live generator output — gradients flow.
+    the discriminator is the live generator output, so gradients flow.
     """
     gen = gen.to(device)
     disc = disc.to(device)
